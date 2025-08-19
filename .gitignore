@@ -46,3 +46,7 @@ spam-tests/
 project/metals.sbt
 .vscode/
 /project/project/
+.claude
+
+# Test change by n1ur0
+temp-test-files/
