@@ -1,0 +1,174 @@
+.code-editor {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #1a1a1a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #2d2d2d;
+  border-bottom: 1px solid #404040;
+}
+
+.language-badge {
+  background: #007acc;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.action-button {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: none;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.editor-container {
+  flex: 1;
+  position: relative;
+  display: flex;
+}
+
+.editor-content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.line-numbers {
+  background: #2d2d2d;
+  color: #6a6a6a;
+  padding: 1rem 0.5rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  user-select: none;
+  border-right: 1px solid #404040;
+  min-width: 3rem;
+  text-align: right;
+}
+
+.line-number {
+  height: 1.6em;
+}
+
+.code-textarea {
+  flex: 1;
+  background: #1a1a1a;
+  color: #f8f8f2;
+  border: none;
+  padding: 1rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+  white-space: nowrap;
+  overflow: auto;
+  tab-size: 2;
+}
+
+.code-textarea-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  color: transparent;
+  border: none;
+  padding: 12px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 14px;
+  line-height: 1.4;
+  resize: none;
+  outline: none;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow: auto;
+  tab-size: 2;
+  caret-color: #f8f8f2;
+  z-index: 2;
+}
+
+.code-textarea-overlay::selection {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.code-textarea::placeholder {
+  color: #6a6a6a;
+}
+
+.code-textarea:focus {
+  background: #1e1e1e;
+}
+
+.editor-footer {
+  padding: 0.5rem 1rem;
+  background: #2d2d2d;
+  border-top: 1px solid #404040;
+}
+
+.status-info {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: #9a9a9a;
+}
+
+/* Custom syntax highlighting styles for ErgoScript */
+.code-editor .token.keyword {
+  color: #569cd6 !important;
+  font-weight: bold;
+}
+
+.code-editor .token.context-variable {
+  color: #4fc1ff !important;
+  font-weight: bold;
+}
+
+.code-editor .token.predefined-function {
+  color: #dcdcaa !important;
+}
+
+.code-editor .token.collection-method {
+  color: #4ec9b0 !important;
+}
+
+.code-editor .token.type {
+  color: #4ec9b0 !important;
+}
+
+.code-editor .token.register {
+  color: #d7ba7d !important;
+  font-weight: bold;
+}
+
+.code-editor .token.lambda {
+  color: #ce9178 !important;
+}

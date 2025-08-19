@@ -1,0 +1,242 @@
+.transaction-node {
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid #6b7280;
+  border-radius: 8px;
+  padding: 10px;
+  min-width: 180px;
+  max-width: 220px;
+  font-family: 'Inter', system-ui, sans-serif;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  position: relative;
+  backdrop-filter: blur(8px);
+  /* Diamond-like shape with clipped corners */
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+.transaction-node:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+
+.transaction-node.selected {
+  border-width: 3px;
+  box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.3);
+}
+
+.transaction-node.highlighted {
+  animation: txPulse 1.5s infinite;
+}
+
+.transaction-node.active {
+  animation: txActiveGlow 1s ease-in-out infinite alternate;
+}
+
+@keyframes txPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes txActiveGlow {
+  0% { box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2); }
+  100% { box-shadow: 0 3px 15px rgba(107, 114, 128, 0.4); }
+}
+
+/* Type-based styling */
+.transaction-node.deposit {
+  border-color: #059669;
+  background: rgba(5, 150, 105, 0.1);
+}
+
+.transaction-node.withdraw {
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.transaction-node.swap {
+  border-color: #7c3aed;
+  background: rgba(124, 58, 237, 0.1);
+}
+
+.transaction-node.setup {
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.1);
+}
+
+/* Status-based styling */
+.transaction-node.failed {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.transaction-node.pending {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  animation: pendingPulse 2s infinite;
+}
+
+@keyframes pendingPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.tx-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.tx-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tx-id {
+  flex: 1;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: white;
+}
+
+.tx-status {
+  display: flex;
+  align-items: center;
+}
+
+.tx-type-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 8px;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+.tx-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 6px;
+}
+
+.tx-io-count {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.io-label {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.io-value {
+  font-weight: 700;
+  color: white;
+  font-family: 'Monaco', 'Menlo', monospace;
+}
+
+.io-separator {
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 2px;
+}
+
+.tx-fee {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+}
+
+.fee-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+}
+
+.fee-value {
+  color: #fbbf24;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-weight: 600;
+}
+
+.tx-signer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+}
+
+.signer-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+}
+
+.signer-value {
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+.tx-description {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  line-height: 1.2;
+}
+
+.tx-status-indicator {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.tx-status-indicator.confirmed {
+  background-color: #10b981;
+}
+
+.tx-status-indicator.failed {
+  background-color: #ef4444;
+}
+
+.tx-status-indicator.pending {
+  background-color: #f59e0b;
+  animation: blinkStatus 1s infinite;
+}
+
+@keyframes blinkStatus {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Handle styling */
+.tx-handle {
+  width: 10px;
+  height: 10px;
+  border: 2px solid white;
+  border-radius: 50%;
+}
+
+.tx-handle.input-handle {
+  left: -5px;
+}
+
+.tx-handle.output-handle {
+  right: -5px;
+}
+
+.tx-handle:hover {
+  width: 12px;
+  height: 12px;
+  border-width: 3px;
+}

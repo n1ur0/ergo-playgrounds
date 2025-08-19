@@ -1,0 +1,135 @@
+.contract-parameters {
+  padding: 1.5rem;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.parameters-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.parameters-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.reset-button {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.reset-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.no-parameters {
+  text-align: center;
+  padding: 2rem;
+  opacity: 0.7;
+}
+
+.parameters-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.parameter-group {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.parameter-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.unit {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 400;
+  font-size: 0.8rem;
+}
+
+.parameter-input {
+  margin-bottom: 0.25rem;
+}
+
+.input-field {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 0.75rem;
+  color: white;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: #64b5f6;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.input-field::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.number-input {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.text-input {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.parameter-helper {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
+}
+
+.parameters-info {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: rgba(100, 181, 246, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(100, 181, 246, 0.2);
+}
+
+.parameters-info h4 {
+  margin: 0 0 0.75rem 0;
+  color: #64b5f6;
+  font-size: 0.95rem;
+}
+
+.parameters-info ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.parameters-info li {
+  margin-bottom: 0.25rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.8);
+}

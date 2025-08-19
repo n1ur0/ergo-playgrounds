@@ -1,0 +1,56 @@
+[package]
+name = "ergoscript-analyzer"
+version = "0.1.0"
+edition = "2021"
+authors = ["Ergo Playgrounds Contributors"]
+description = "ErgoScript contract flow analysis system for visual diagram generation"
+license = "MIT"
+keywords = ["ergo", "blockchain", "smart-contracts", "analysis", "visualization"]
+
+[dependencies]
+# Core parsing and serialization
+nom = "7.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# CLI and logging
+clap = { version = "4.4", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Collections and utilities
+indexmap = "2.0"
+uuid = { version = "1.6", features = ["v4", "serde"] }
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1.4"
+
+[[bench]]
+name = "parser_benchmark"
+harness = false
+
+[lib]
+name = "ergoscript_analyzer"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ergo-analyzer"
+path = "src/main.rs"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+debug = true
+
+[features]
+default = ["cli"]
+cli = ["clap", "tracing", "tracing-subscriber"]
