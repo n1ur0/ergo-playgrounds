@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Code, Play, RefreshCw, CheckCircle, XCircle, Settings, Users, Coins, Network } from 'lucide-react';
+import { Code, Play, RefreshCw, CheckCircle, XCircle, Settings, Users, Network, BookOpen } from 'lucide-react';
 import CodeEditor from './CodeEditor';
 import SimulationResults from './SimulationResults';
 import ContractParameters from './ContractParameters';
 import UTXOVisualization from './visualization/UTXOVisualization';
+import ContractEducation from './education/ContractEducation';
 import './ContractTester.css';
 
 interface ContractTesterProps {
@@ -849,7 +850,7 @@ const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample }) => {
   const [code, setCode] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
-  const [activeTab, setActiveTab] = useState<'code' | 'params' | 'results' | 'diagram'>('code');
+  const [activeTab, setActiveTab] = useState<'code' | 'params' | 'results' | 'diagram' | 'learn'>('learn');
   const [parameters, setParameters] = useState<Record<string, any>>({});
 
   useEffect(() => {
@@ -977,6 +978,13 @@ const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample }) => {
 
       <div className="contract-tabs">
         <button
+          className={`tab ${activeTab === 'learn' ? 'active' : ''}`}
+          onClick={() => setActiveTab('learn')}
+        >
+          <BookOpen size={16} />
+          Learn
+        </button>
+        <button
           className={`tab ${activeTab === 'code' ? 'active' : ''}`}
           onClick={() => setActiveTab('code')}
         >
@@ -1013,6 +1021,12 @@ const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample }) => {
       </div>
 
       <div className="contract-content">
+        {activeTab === 'learn' && (
+          <ContractEducation 
+            selectedExample={selectedExample}
+          />
+        )}
+        
         {activeTab === 'code' && (
           <CodeEditor
             value={code}
