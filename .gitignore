@@ -50,3 +50,7 @@ project/metals.sbt
 
 # Test change by n1ur0
 temp-test-files/
+
+.playwright-mcp/
+
+*.md
