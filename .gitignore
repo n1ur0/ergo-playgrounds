@@ -54,3 +54,4 @@ temp-test-files/
 .playwright-mcp/
 
 *.md
+CLAUDE.md
