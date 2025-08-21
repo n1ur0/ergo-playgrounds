@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ergo Simple Send Contract - UTXO Flow Diagram</title>
+    <style>
+        /* Reset and Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            min-height: 100vh;
+            color: white;
+            padding: 20px;
+            overflow-x: auto;
+        }
+
+        /* Container */
+        .diagram-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #3b82f6, #10b981);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .header .subtitle {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.7);
+            font-weight: 400;
+        }
+
+        /* Flow Layout */
+        .flow-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            min-height: 400px;
+            position: relative;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding: 20px 0;
+        }
+
+        /* UTXO Box Styles */
+        .utxo-box {
+            background: rgba(15, 23, 42, 0.9);
+            border: 2px solid #2563eb;
+            border-radius: 20px;
+            padding: 20px;
+            min-height: 200px;
+            min-width: 280px;
+            max-width: 320px;
+            backdrop-filter: blur(12px);
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                0 4px 16px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .utxo-box:hover {
+            transform: translateY(-8px);
+            box-shadow: 
+                0 16px 48px rgba(0, 0, 0, 0.4),
+                0 8px 24px rgba(0, 0, 0, 0.3);
+            border-width: 3px;
+        }
+
+        .utxo-box.sender {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .utxo-box.contract {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .utxo-box.change {
+            border-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        /* Transaction Node */
+        .transaction-node {
+            background: rgba(30, 41, 59, 0.9);
+            border: 2px solid #6b7280;
+            border-radius: 18px;
+            padding: 20px;
+            min-height: 150px;
+            min-width: 200px;
+            max-width: 240px;
+            backdrop-filter: blur(12px);
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                0 4px 16px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .transaction-node:hover {
+            transform: translateY(-6px);
+            box-shadow: 
+                0 16px 48px rgba(0, 0, 0, 0.4),
+                0 8px 24px rgba(0, 0, 0, 0.3);
+            border-width: 3px;
+        }
+
+        /* Box Headers */
+        .box-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .box-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: white;
+        }
+
+        .sender .box-icon {
+            background: linear-gradient(135deg, #3b82f6, #1e40af);
+        }
+
+        .contract .box-icon {
+            background: linear-gradient(135deg, #10b981, #047857);
+        }
+
+        .change .box-icon {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+
+        .box-info h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .box-info .box-type {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.6);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Value Display */
+        .box-value {
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+            font-family: 'Monaco', 'Menlo', 'SF Mono', monospace;
+        }
+
+        .sender .box-value {
+            color: #60a5fa;
+        }
+
+        .contract .box-value {
+            color: #34d399;
+        }
+
+        .change .box-value {
+            color: #fbbf24;
+        }
+
+        /* Details */
+        .box-details {
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding: 4px 0;
+        }
+
+        .detail-label {
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: 500;
+        }
+
+        .detail-value {
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 600;
+        }
+
+        .script-preview {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 8px;
+            margin-top: 8px;
+            font-family: 'Monaco', 'Menlo', 'SF Mono', monospace;
+            font-size: 0.75rem;
+            color: #34d399;
+            border-left: 3px solid #10b981;
+        }
+
+        /* Transaction Details */
+        .tx-header h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .tx-type {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.6);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+        }
+
+        .tx-summary {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 0.85rem;
+        }
+
+        .io-count {
+            text-align: center;
+        }
+
+        .io-label {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.7rem;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .io-value {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        /* Flow Arrows */
+        .flow-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            flex-shrink: 0;
+            min-width: 60px;
+            height: 32px;
+        }
+
+        .flow-arrow svg {
+            width: 60px;
+            height: 32px;
+        }
+
+        /* State Indicators */
+        .state-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #34d399;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .spent .state-badge {
+            background: rgba(107, 114, 128, 0.2);
+            border-color: rgba(107, 114, 128, 0.3);
+            color: #9ca3af;
+        }
+
+        /* Party Indicators */
+        .party-indicator {
+            position: absolute;
+            top: -8px;
+            left: 20px;
+            background: #2563eb;
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .contract .party-indicator {
+            background: #10b981;
+        }
+
+        .change .party-indicator {
+            background: #f59e0b;
+        }
+
+        /* Animation Effects */
+        @keyframes flowAnimation {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+
+        .flow-arrow svg path {
+            animation: flowAnimation 2s ease-in-out infinite;
+        }
+
+        .flow-arrow:nth-child(2) svg path {
+            animation-delay: 0.5s;
+        }
+
+        .flow-arrow:nth-child(3) svg path {
+            animation-delay: 1s;
+        }
+
+        .flow-arrow:nth-child(4) svg path {
+            animation-delay: 1.5s;
+        }
+
+        /* Legend */
+        .legend {
+            margin-top: 60px;
+            padding: 24px;
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 16px;
+            backdrop-filter: blur(12px);
+        }
+
+        .legend h4 {
+            font-size: 1.1rem;
+            margin-bottom: 16px;
+            color: #e2e8f0;
+        }
+
+        .legend-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .legend-text {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .flow-diagram {
+                flex-direction: column;
+                gap: 30px;
+                align-items: center;
+                overflow-x: visible;
+            }
+
+            .flow-arrow {
+                transform: rotate(90deg);
+                width: 32px;
+                height: 60px;
+            }
+
+            .flow-arrow svg {
+                width: 32px;
+                height: 60px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .utxo-box {
+                padding: 16px;
+                min-height: 160px;
+            }
+
+            .transaction-node {
+                padding: 16px;
+                min-height: 120px;
+            }
+
+            .box-value {
+                font-size: 1.2rem;
+            }
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="diagram-container">
+        <div class="header">
+            <h1>Simple Send Contract</h1>
+            <p class="subtitle">UTXO Flow Visualization - sigmaProp(1 == 1)</p>
+        </div>
+
+        <div class="flow-diagram">
+            <!-- Sender's Initial Box -->
+            <div class="utxo-box sender" data-tooltip="Sender's initial UTXO containing 100M nanoERG (0.1 ERG)" 
+                 role="article" aria-label="Sender's initial UTXO box" tabindex="0">
+                <div class="party-indicator">SENDER</div>
+                <div class="state-badge spent" aria-label="Box status: Spent">SPENT</div>
+                <div class="box-header">
+                    <div class="box-icon" role="img" aria-label="User icon">👤</div>
+                    <div class="box-info">
+                        <h3>Sender's Box</h3>
+                        <div class="box-type">Initial Wallet UTXO</div>
+                    </div>
+                </div>
+                <div class="box-value">0.1 ERG</div>
+                <div class="box-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Box ID:</span>
+                        <span class="detail-value">sender_box_1</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Value:</span>
+                        <span class="detail-value">100,000,000 nERG</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Script:</span>
+                        <span class="detail-value">P2PK(senderPk)</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Tokens:</span>
+                        <span class="detail-value">None</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flow Arrow 1 -->
+            <div class="flow-arrow arrow-1" role="img" aria-label="Transaction flow from sender to deposit transaction">
+                <svg viewBox="0 0 60 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M2 12h52m0 0l-6-6m6 6l-6 6" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+
+            <!-- Deposit Transaction -->
+            <div class="transaction-node" data-tooltip="Deposit transaction that creates the true contract box and change"
+                 role="article" aria-label="Deposit transaction node" tabindex="0">
+                <div class="tx-header">
+                    <h3>Deposit Transaction</h3>
+                    <div class="tx-type">Contract Creation</div>
+                </div>
+                <div class="tx-summary">
+                    <div class="io-count">
+                        <span class="io-label">Inputs</span>
+                        <div class="io-value">1</div>
+                    </div>
+                    <div class="io-count">
+                        <span class="io-label">Outputs</span>
+                        <div class="io-value">2</div>
+                    </div>
+                    <div class="io-count">
+                        <span class="io-label">Fee</span>
+                        <div class="io-value">1,000</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flow Arrow 2 -->
+            <div class="flow-arrow arrow-2" role="img" aria-label="Transaction flow from deposit transaction to contract box">
+                <svg viewBox="0 0 60 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M2 12h52m0 0l-6-6m6 6l-6 6" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+
+            <!-- True Contract Box -->
+            <div class="utxo-box contract" data-tooltip="Contract box protected by sigmaProp(1 == 1) - always spendable"
+                 role="article" aria-label="Smart contract UTXO box" tabindex="0">
+                <div class="party-indicator">CONTRACT</div>
+                <div class="state-badge" aria-label="Box status: Unspent">UNSPENT</div>
+                <div class="box-header">
+                    <div class="box-icon" role="img" aria-label="Contract document icon">📜</div>
+                    <div class="box-info">
+                        <h3>True Contract</h3>
+                        <div class="box-type">Smart Contract UTXO</div>
+                    </div>
+                </div>
+                <div class="box-value">0.05 ERG</div>
+                <div class="box-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Box ID:</span>
+                        <span class="detail-value">contract_box_1</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Value:</span>
+                        <span class="detail-value">50,000,000 nERG</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Tokens:</span>
+                        <span class="detail-value">None</span>
+                    </div>
+                    <div class="script-preview">
+                        sigmaProp(1 == 1)
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flow Arrow 3 -->
+            <div class="flow-arrow arrow-3" role="img" aria-label="Transaction flow from deposit transaction to change box">
+                <svg viewBox="0 0 60 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M2 12h52m0 0l-6-6m6 6l-6 6" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+
+            <!-- Change Box -->
+            <div class="utxo-box change" data-tooltip="Change box returning remaining funds to sender"
+                 role="article" aria-label="Change output UTXO box" tabindex="0">
+                <div class="party-indicator">SENDER</div>
+                <div class="state-badge" aria-label="Box status: Unspent">UNSPENT</div>
+                <div class="box-header">
+                    <div class="box-icon" role="img" aria-label="Refresh cycle icon">🔄</div>
+                    <div class="box-info">
+                        <h3>Change Output</h3>
+                        <div class="box-type">Wallet Change UTXO</div>
+                    </div>
+                </div>
+                <div class="box-value">~0.05 ERG</div>
+                <div class="box-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Box ID:</span>
+                        <span class="detail-value">change_box_1</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Value:</span>
+                        <span class="detail-value">49,999,000 nERG</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Script:</span>
+                        <span class="detail-value">P2PK(senderPk)</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Tokens:</span>
+                        <span class="detail-value">None</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="legend">
+            <h4>Legend</h4>
+            <div class="legend-items">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: linear-gradient(135deg, #3b82f6, #1e40af);"></div>
+                    <span class="legend-text">Sender's UTXO boxes (wallet controlled)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: linear-gradient(135deg, #10b981, #047857);"></div>
+                    <span class="legend-text">Smart contract box (sigmaProp(1==1))</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: linear-gradient(135deg, #f59e0b, #d97706);"></div>
+                    <span class="legend-text">Change output (remaining funds)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: linear-gradient(135deg, #6b7280, #374151);"></div>
+                    <span class="legend-text">Transaction node (processing)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tooltip element -->
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+        // Tooltip functionality with error handling
+        const elements = document.querySelectorAll('[data-tooltip]');
+        const tooltip = document.getElementById('tooltip');
+
+        if (tooltip && elements.length > 0) {
+            elements.forEach(element => {
+                element.addEventListener('mouseenter', (e) => {
+                    const tooltipText = e.target.getAttribute('data-tooltip');
+                    if (tooltipText) {
+                        tooltip.textContent = tooltipText;
+                        tooltip.style.opacity = '1';
+                    }
+                });
+
+                element.addEventListener('mousemove', (e) => {
+                    // Keep tooltip within viewport bounds
+                    const tooltipRect = tooltip.getBoundingClientRect();
+                    let left = e.pageX + 10;
+                    let top = e.pageY - 30;
+                    
+                    if (left + tooltipRect.width > window.innerWidth) {
+                        left = e.pageX - tooltipRect.width - 10;
+                    }
+                    if (top < 0) {
+                        top = e.pageY + 10;
+                    }
+                    
+                    tooltip.style.left = left + 'px';
+                    tooltip.style.top = top + 'px';
+                });
+
+                element.addEventListener('mouseleave', () => {
+                    tooltip.style.opacity = '0';
+                });
+            });
+        }
+
+        // Add click effects and keyboard support
+        const boxes = document.querySelectorAll('.utxo-box, .transaction-node');
+        boxes.forEach(box => {
+            // Click handler
+            box.addEventListener('click', () => {
+                // Add a ripple effect or similar interaction
+                box.style.transform = 'scale(1.05)';
+                setTimeout(() => {
+                    box.style.transform = '';
+                }, 200);
+            });
+            
+            // Keyboard support
+            box.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    box.click();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

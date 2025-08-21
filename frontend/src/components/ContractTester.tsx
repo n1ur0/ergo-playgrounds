@@ -1024,9 +1024,9 @@ val ergDepositTransaction = Transaction(
 
 val ergDepositSigned = partyA.wallet.sign(ergDepositTransaction)
 blockchainSim.send(ergDepositSigned)
-println(s"✓ Alice deposited ${swapAmount/1000000000.0} ERG into hash-locked box")
-println(s"  Secret Hash: ${secretHash.take(16)}...")
-println(s"  Timeout: ${longTimeout} blocks\n")
+println(s"✓ Alice deposited \${swapAmount/1000000000.0} ERG into hash-locked box")
+println(s"  Secret Hash: \${secretHash.take(16)}...")
+println(s"  Timeout: \${longTimeout} blocks\n")
 
 // ========================================
 // PHASE 2: PARTY B DEPOSITS TOKENS (RESPONDER)
@@ -1058,9 +1058,9 @@ val tokenDepositTransaction = Transaction(
 
 val tokenDepositSigned = partyB.wallet.sign(tokenDepositTransaction)
 blockchainSim.send(tokenDepositSigned)
-println(s"✓ Bob deposited ${tokenAmount} tokens into hash-locked box")
-println(s"  Same Secret Hash: ${secretHash.take(16)}...")
-println(s"  Timeout: ${shortTimeout} blocks (shorter for security)\n")
+println(s"✓ Bob deposited \${tokenAmount} tokens into hash-locked box")
+println(s"  Same Secret Hash: \${secretHash.take(16)}...")
+println(s"  Timeout: \${shortTimeout} blocks (shorter for security)\n")
 
 // ========================================
 // PHASE 3: PARTY A CLAIMS TOKENS (REVEALS SECRET)
@@ -1089,8 +1089,8 @@ val aliceClaimWithSecret = aliceClaimTransaction.copy(
 
 val aliceClaimSigned = partyA.wallet.sign(aliceClaimWithSecret)
 blockchainSim.send(aliceClaimSigned)
-println(s"✓ Alice claimed ${tokenAmount} tokens by revealing secret")
-println(s"  Revealed Secret: '${secretPhrase}'")
+println(s"✓ Alice claimed \${tokenAmount} tokens by revealing secret")
+println(s"  Revealed Secret: '\${secretPhrase}'")
 println(s"  Alice now has the tokens she wanted\n")
 
 // ========================================
@@ -1120,7 +1120,7 @@ val bobClaimWithSecret = bobClaimTransaction.copy(
 
 val bobClaimSigned = partyB.wallet.sign(bobClaimWithSecret)
 blockchainSim.send(bobClaimSigned)
-println(s"✓ Bob claimed ${swapAmount/1000000000.0} ERG using revealed secret")
+println(s"✓ Bob claimed \${swapAmount/1000000000.0} ERG using revealed secret")
 println(s"  Bob now has the ERG he wanted\n")
 
 // ========================================
@@ -1128,8 +1128,8 @@ println(s"  Bob now has the ERG he wanted\n")
 // ========================================
 println("=== ATOMIC SWAP COMPLETED SUCCESSFULLY! ===\n")
 println("Final State:")
-println(s"  Alice: Started with ${partyAFunds/1000000000.0} ERG → Now has ${tokenAmount} tokens")
-println(s"  Bob:   Started with ${tokenAmount} tokens → Now has ${(swapAmount-MinTxFee)/1000000000.0} ERG")
+println(s"  Alice: Started with \${partyAFunds/1000000000.0} ERG → Now has \${tokenAmount} tokens")
+println(s"  Bob:   Started with \${tokenAmount} tokens → Now has \${(swapAmount-MinTxFee)/1000000000.0} ERG")
 println("\nKey Features Demonstrated:")
 println("  ✓ Hash lock mechanism ensures atomicity")
 println("  ✓ Secret reveal enables both parties to claim")
@@ -1207,288 +1207,937 @@ println("  • No single point of failure or trusted third party")
 println("  • Timeout mechanisms prevent indefinite locks")
 println("  • Hash commitment prevents front-running")`,
 
-  doubleChainSwap: `// Double Chain (Cross-Chain) Atomic Swap Contract
-// Enables trustless exchange between different blockchains using hash time locks
-val chainAPartyPubKey = "chainA_party_public_key_here"
-val chainBPartyPubKey = "chainB_party_public_key_here"
-val secretHash = Blake2b256("cross_chain_secret_here".getBytes())
-val chainATimeout = 200L // blocks
-val chainBTimeout = 100L // blocks (shorter timeout for second chain)
-val swapAmount = 50000000L // 0.05 ERG on chain A
-val chainBTokenId = "chainB_token_id_here"
-val chainBTokenAmount = 1000L
+  doubleChainSwap: `// COMPREHENSIVE DOUBLE CHAIN ATOMIC SWAP CONTRACT
+// Demonstrates complete trustless cross-chain asset exchange using Hash Time Lock Contracts (HTLCs)
+// Educational implementation showing Ergo ↔ Bitcoin-style atomic swap with proper security mechanisms
 
-// Contract for Chain A (longer timeout)
-val chainASwapScript = s"""
+// ========================================
+// CROSS-CHAIN SWAP CONFIGURATION
+// ========================================
+val ergSwapAmount = 100000000L // 0.1 ERG (Party A offers on Ergo chain)
+val btcTokenId = "BTC_TOKEN_SIM_001" // Simulated Bitcoin token on Chain B
+val btcSwapAmount = 50000L // 0.0005 BTC equivalent (Party B offers)
+val crossChainSecret = "atomic_swap_secret_ergo_btc_2024"
+val crossChainSecretHash = Blake2b256(crossChainSecret.getBytes())
+
+// Different timeout periods for cross-chain security
+val ergoTimeout = 288L // 288 blocks ≈ 9.6 hours (initiator gets longer timeout)
+val btcTimeout = 144L // 144 blocks ≈ 4.8 hours (responder gets shorter timeout for protection)
+
+// Party identities (in real implementation these would be actual cross-chain addresses)
+val aliceErgoPubKey = "03a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3"
+val bobBtcPubKey = "03f4e5d6c7b8a9f0e1d2c3b4a5f6e7d8c9f0a1b2e3d4c5f6a7b8c9d0e1f2a3b4c5d6"
+
+// ========================================
+// ERGO CHAIN HTLC CONTRACT (CHAIN A)
+// ========================================
+val ergoChainHTLCScript = s"""
 {
+  // =====================================
+  // CONTRACT STATE AND METADATA
+  // =====================================
+  val creationHeight = SELF.creationInfo._1
+  val swapSecretHash = SELF.R4[Coll[Byte]].get // Hash of cross-chain secret
+  val counterpartyChain = SELF.R5[Coll[Byte]].get // "BTC_CHAIN" identifier
+  val counterpartyPubKey = SELF.R6[Coll[Byte]].get // Bob's BTC public key
+  val initiatorPubKey = SELF.R7[Coll[Byte]].get // Alice's Ergo public key
+  val swapTimeout = SELF.R8[Long].get // Timeout block height
+  
+  // =====================================
+  // SECRET REVELATION MECHANISM
+  // =====================================
   val secretReveal = {
-    val providedSecret = INPUTS(0).R4[Coll[Byte]].get
-    blake2b256(providedSecret) == fromBase64("$secretHash")
+    // Extract secret from transaction input
+    val providedSecret = INPUTS(0).R4[Coll[Byte]].getOrElse(Coll[Byte]())
+    val validSecret = providedSecret.size > 0 && blake2b256(providedSecret) == swapSecretHash
+    
+    validSecret
   }
   
-  val validClaim = {
-    // Chain B party claims with secret
-    secretReveal && 
-    OUTPUTS(0).propositionBytes == fromBase64("$chainBPartyPubKey")
-  }
-  
-  val timeoutRefund = {
-    // Chain A party can reclaim after timeout
-    HEIGHT > SELF.creationInfo._1 + $chainATimeout &&
-    OUTPUTS(0).propositionBytes == fromBase64("$chainAPartyPubKey")
-  }
-  
-  validClaim || timeoutRefund
-}
-""".stripMargin
-
-// Contract for Chain B (shorter timeout for security)
-val chainBSwapScript = s"""
-{
-  val secretReveal = {
-    val providedSecret = INPUTS(0).R4[Coll[Byte]].get
-    blake2b256(providedSecret) == fromBase64("$secretHash")
-  }
-  
-  val validClaim = {
-    // Chain A party claims with secret
-    secretReveal && 
-    OUTPUTS(0).propositionBytes == fromBase64("$chainAPartyPubKey")
-  }
-  
-  val timeoutRefund = {
-    // Chain B party can reclaim after shorter timeout
-    HEIGHT > SELF.creationInfo._1 + $chainBTimeout &&
-    OUTPUTS(0).propositionBytes == fromBase64("$chainBPartyPubKey")
-  }
-  
-  validClaim || timeoutRefund
-}
-""".stripMargin
-
-val chainAContract = ErgoScriptCompiler.compile(Map(), chainASwapScript)
-val chainBContract = ErgoScriptCompiler.compile(Map(), chainBSwapScript)
-
-// Simulate both chains
-val chainASim = newBlockChainSimulationScenario("Chain A Simulation")
-val chainBSim = newBlockChainSimulationScenario("Chain B Simulation")
-
-// Parties on both chains
-val chainAParty = chainASim.newParty("chainAParty")
-val chainBParty = chainBSim.newParty("chainBParty")
-
-// Initial funds
-val chainAFunds = 100000000L // 0.1 ERG
-val chainBFunds = 50000000L // 0.05 ERG for fees
-
-chainAParty.generateUnspentBoxes(toSpend = chainAFunds)
-chainBParty.generateUnspentBoxes(toSpend = chainBFunds)
-// Chain B party has tokens to swap
-chainBParty.generateUnspentBoxes(
-  toSpend = MinBoxValue, 
-  tokens = List((chainBTokenId -> chainBTokenAmount))
-)
-
-// Step 1: Chain A party locks ERG (initiates swap)
-val chainALockBox = Box(
-  value = swapAmount,
-  script = chainAContract
-)
-
-val chainALockTransaction = Transaction(
-  inputs = chainAParty.selectUnspentBoxes(toSpend = swapAmount + MinTxFee),
-  outputs = List(chainALockBox),
-  fee = MinTxFee,
-  sendChangeTo = chainAParty.wallet.getAddress
-)
-
-val chainALockSigned = chainAParty.wallet.sign(chainALockTransaction)
-chainASim.send(chainALockSigned)
-
-// Step 2: Chain B party locks tokens (responds to swap)
-val chainBLockBox = Box(
-  value = MinBoxValue,
-  script = chainBContract,
-  tokens = List((chainBTokenId -> chainBTokenAmount))
-)
-
-val chainBLockTransaction = Transaction(
-  inputs = chainBParty.selectUnspentBoxes(
-    tokens = List((chainBTokenId -> chainBTokenAmount))
-  ),
-  outputs = List(chainBLockBox),
-  fee = MinTxFee,
-  sendChangeTo = chainBParty.wallet.getAddress
-)
-
-val chainBLockSigned = chainBParty.wallet.sign(chainBLockTransaction)
-chainBSim.send(chainBLockSigned)
-
-// Step 3: Chain A party claims tokens on Chain B (reveals secret)
-val chainBClaimBox = Box(
-  value = MinBoxValue - MinTxFee,
-  script = contract(chainAParty.wallet.getAddress.pubKey),
-  tokens = List((chainBTokenId -> chainBTokenAmount))
-)
-
-val chainBClaimTransaction = Transaction(
-  inputs = List(chainBLockSigned.outputs(0)),
-  outputs = List(chainBClaimBox),
-  fee = MinTxFee
-)
-
-val chainBClaimWithSecret = chainBClaimTransaction.copy(
-  inputs = chainBClaimTransaction.inputs.map(_.copy(
-    extension = Map(R4 -> "cross_chain_secret_here".getBytes())
-  ))
-)
-
-val chainBClaimSigned = chainAParty.wallet.sign(chainBClaimWithSecret)
-chainBSim.send(chainBClaimSigned)
-
-// Step 4: Chain B party claims ERG on Chain A (using revealed secret)
-val chainAClaimBox = Box(
-  value = swapAmount - MinTxFee,
-  script = contract(chainBParty.wallet.getAddress.pubKey)
-)
-
-val chainAClaimTransaction = Transaction(
-  inputs = List(chainALockSigned.outputs(0)),
-  outputs = List(chainAClaimBox),
-  fee = MinTxFee
-)
-
-val chainAClaimWithSecret = chainAClaimTransaction.copy(
-  inputs = chainAClaimTransaction.inputs.map(_.copy(
-    extension = Map(R4 -> "cross_chain_secret_here".getBytes())
-  ))
-)
-
-val chainAClaimSigned = chainBParty.wallet.sign(chainAClaimWithSecret)
-chainASim.send(chainAClaimSigned)
-
-// Swap completed successfully on both chains!`,
-
-  stealthAddress: `// Stealth Address Contract
-// Enables privacy-preserving transactions using one-time addresses
-val recipientViewKey = "recipient_view_key_here"
-val recipientSpendKey = "recipient_spend_key_here"
-val senderEphemeralKey = "sender_ephemeral_private_key_here"
-val sharedSecret = "computed_shared_secret_here" // ECDH(senderEphemeral, recipientView)
-val oneTimeAddress = "computed_one_time_address_here" // Hash(sharedSecret || recipientSpend)
-
-val stealthScript = s"""
-{
-  // Only the recipient can spend from this stealth address
-  // They need to prove knowledge of the one-time private key
-  val validSpend = {
-    val providedPubKey = OUTPUTS(0).propositionBytes
-    val validRecipient = {
-      // Recipient reconstructs the one-time private key and proves ownership
-      // In practice, this would involve elliptic curve operations
-      // Simplified here for demonstration
-      val reconstructedSecret = INPUTS(0).R4[Coll[Byte]].get
-      blake2b256(reconstructedSecret) == blake2b256("$sharedSecret".getBytes())
+  // =====================================
+  // CROSS-CHAIN CLAIM PATH
+  // =====================================
+  val crossChainClaim = {
+    secretReveal && {
+      // Bob (counterparty) reveals secret and claims Alice's ERG
+      val claimerPubKey = OUTPUTS(0).propositionBytes
+      val validCounterparty = claimerPubKey == counterpartyPubKey
+      
+      // Ensure proper ERG transfer to Bob
+      val properTransfer = OUTPUTS(0).value >= SELF.value - MinTxFee
+      
+      // Additional cross-chain validation
+      val withinTimeout = HEIGHT <= creationHeight + swapTimeout
+      val crossChainProof = {
+        // In real implementation, this would verify proof from other chain
+        // For simulation, we validate the chain identifier
+        counterpartyChain == "BTC_CHAIN".getBytes()
+      }
+      
+      validCounterparty && properTransfer && withinTimeout && crossChainProof
     }
-    validRecipient
   }
   
-  // Emergency recovery mechanism (time-locked)
-  val emergencyRecovery = {
-    HEIGHT > SELF.creationInfo._1 + 10000L && // Very long timeout
-    sigmaProp("$recipientSpendKey")
+  // =====================================
+  // TIMEOUT REFUND MECHANISM
+  // =====================================
+  val timeoutRefund = {
+    // Alice can reclaim her ERG after timeout if Bob never claimed
+    val isTimeout = HEIGHT > creationHeight + swapTimeout
+    val originalInitiatorClaim = OUTPUTS(0).propositionBytes == initiatorPubKey
+    val properRefund = OUTPUTS(0).value >= SELF.value - MinTxFee
+    
+    isTimeout && originalInitiatorClaim && properRefund
   }
   
-  validSpend || emergencyRecovery
+  // =====================================
+  // CONTRACT VALIDATION LOGIC
+  // =====================================
+  crossChainClaim || timeoutRefund
 }
 """.stripMargin
 
-val stealthContract = ErgoScriptCompiler.compile(Map(), stealthScript)
+// ========================================
+// BITCOIN CHAIN HTLC CONTRACT (CHAIN B SIMULATION)
+// ========================================
+val btcChainHTLCScript = s"""
+{
+  // =====================================
+  // CONTRACT STATE AND METADATA
+  // =====================================
+  val creationHeight = SELF.creationInfo._1
+  val hasTokens = SELF.tokens.size > 0
+  val swapSecretHash = SELF.R4[Coll[Byte]].get // Same hash as Ergo chain
+  val counterpartyChain = SELF.R5[Coll[Byte]].get // "ERGO_CHAIN" identifier
+  val counterpartyPubKey = SELF.R6[Coll[Byte]].get // Alice's Ergo public key
+  val responderPubKey = SELF.R7[Coll[Byte]].get // Bob's BTC public key
+  val swapTimeout = SELF.R8[Long].get // Shorter timeout for security
+  
+  // =====================================
+  // SECRET REVELATION MECHANISM
+  // =====================================
+  val secretReveal = {
+    val providedSecret = INPUTS(0).R4[Coll[Byte]].getOrElse(Coll[Byte]())
+    val validSecret = providedSecret.size > 0 && blake2b256(providedSecret) == swapSecretHash
+    
+    validSecret
+  }
+  
+  // =====================================
+  // CROSS-CHAIN CLAIM PATH
+  // =====================================
+  val crossChainClaim = {
+    secretReveal && {
+      // Alice (counterparty) reveals secret and claims Bob's BTC tokens
+      val claimerPubKey = OUTPUTS(0).propositionBytes
+      val validCounterparty = claimerPubKey == counterpartyPubKey
+      
+      // Ensure proper token transfer to Alice
+      val properTokenTransfer = {
+        if (hasTokens) {
+          OUTPUTS(0).tokens.size > 0 &&
+          OUTPUTS(0).tokens(0)._1 == SELF.tokens(0)._1 && // Same token ID
+          OUTPUTS(0).tokens(0)._2 == SELF.tokens(0)._2    // Same amount
+        } else {
+          false // This contract should always have tokens
+        }
+      }
+      
+      // Shorter timeout for responder chain security
+      val withinTimeout = HEIGHT <= creationHeight + swapTimeout
+      val crossChainProof = counterpartyChain == "ERGO_CHAIN".getBytes()
+      
+      validCounterparty && properTokenTransfer && withinTimeout && crossChainProof
+    }
+  }
+  
+  // =====================================
+  // TIMEOUT REFUND MECHANISM
+  // =====================================
+  val timeoutRefund = {
+    // Bob can reclaim his BTC tokens after shorter timeout
+    val isTimeout = HEIGHT > creationHeight + swapTimeout
+    val originalResponderClaim = OUTPUTS(0).propositionBytes == responderPubKey
+    val properTokenRefund = {
+      if (hasTokens) {
+        OUTPUTS(0).tokens.size > 0 &&
+        OUTPUTS(0).tokens(0)._1 == SELF.tokens(0)._1 &&
+        OUTPUTS(0).tokens(0)._2 == SELF.tokens(0)._2
+      } else {
+        true
+      }
+    }
+    
+    isTimeout && originalResponderClaim && properTokenRefund
+  }
+  
+  // =====================================
+  // CONTRACT VALIDATION LOGIC
+  // =====================================
+  crossChainClaim || timeoutRefund
+}
+""".stripMargin
 
-// Create blockchain simulation
-val blockchainSim = newBlockChainSimulationScenario("Stealth Address Scenario")
-val senderParty = blockchainSim.newParty("sender")
-val recipientParty = blockchainSim.newParty("recipient")
+// Compile both cross-chain HTLC contracts
+val ergoChainHTLC = ErgoScriptCompiler.compile(Map(), ergoChainHTLCScript)
+val btcChainHTLC = ErgoScriptCompiler.compile(Map(), btcChainHTLCScript)
 
-// Initial funds
-val senderFunds = 100000000L // 0.1 ERG
-val stealthAmount = 50000000L // 0.05 ERG
+// ========================================
+// DUAL BLOCKCHAIN SIMULATION SETUP
+// ========================================
+val ergoChainSim = newBlockChainSimulationScenario("Ergo Chain - Cross-Chain Atomic Swap")
+val btcChainSim = newBlockChainSimulationScenario("Bitcoin Chain - Cross-Chain Atomic Swap")
 
-senderParty.generateUnspentBoxes(toSpend = senderFunds)
-recipientParty.generateUnspentBoxes(toSpend = 10000000L) // Small amount for fees
+// Cross-chain participants
+val alice = ergoChainSim.newParty("Alice_ERG_Holder") // Has ERG, wants BTC
+val bob = btcChainSim.newParty("Bob_BTC_Holder") // Has BTC, wants ERG
 
-// Step 1: Generate ephemeral key pair (sender)
-val ephemeralPrivKey = "random_ephemeral_private_key"
-val ephemeralPubKey = "derived_ephemeral_public_key" // Derive from private key
+// Initialize cross-chain funds
+val aliceInitialERG = 300000000L // 0.3 ERG for swap + fees + change
+val bobInitialERG = 50000000L // 0.05 ERG for fees on BTC chain simulation
 
-// Step 2: Compute shared secret using ECDH
-// sharedSecret = ECDH(ephemeralPrivKey, recipientViewKey)
-val computedSharedSecret = Blake2b256(
-  (ephemeralPrivKey + recipientViewKey).getBytes()
-) // Simplified ECDH
+alice.generateUnspentBoxes(toSpend = aliceInitialERG)
+bob.generateUnspentBoxes(toSpend = bobInitialERG)
 
-// Step 3: Compute one-time address
-// oneTimePrivKey = Hash(sharedSecret || recipientSpendKey)
-val oneTimePrivKey = Blake2b256(
-  computedSharedSecret ++ recipientSpendKey.getBytes()
+// Bob generates simulated BTC tokens
+bob.generateUnspentBoxes(
+  toSpend = MinBoxValue,
+  tokens = List((btcTokenId -> btcSwapAmount))
 )
 
-// Step 4: Create stealth payment
-val stealthBox = Box(
-  value = stealthAmount,
-  script = stealthContract,
+// Get public key bytes for cross-chain references
+val alicePubKeyBytes = alice.wallet.getAddress.pubKey.getEncoded()
+val bobPubKeyBytes = bob.wallet.getAddress.pubKey.getEncoded()
+
+// ========================================
+// PHASE 1: ALICE INITIATES ON ERGO CHAIN
+// ========================================
+println("=== PHASE 1: ALICE LOCKS ERG ON ERGO CHAIN (INITIATOR) ===\n")
+
+// Alice creates the hash-locked ERG deposit
+val ergoHTLCBox = Box(
+  value = ergSwapAmount,
+  script = ergoChainHTLC,
   registers = Map(
-    R4 -> ephemeralPubKey.getBytes(), // Public ephemeral key for recipient
-    R5 -> computedSharedSecret // Shared secret (simplified)
+    R4 -> crossChainSecretHash,          // Secret hash (same for both chains)
+    R5 -> "BTC_CHAIN".getBytes(),       // Counterparty chain identifier
+    R6 -> bobPubKeyBytes,               // Bob's public key (can claim with secret)
+    R7 -> alicePubKeyBytes,             // Alice's public key (can reclaim after timeout)
+    R8 -> ergoTimeout                   // Longer timeout for initiator
   )
 )
 
-// Sender creates the stealth payment
+// Alice's ERG lock transaction
+val ergoLockTransaction = Transaction(
+  inputs = alice.selectUnspentBoxes(toSpend = ergSwapAmount + MinTxFee),
+  outputs = List(ergoHTLCBox),
+  fee = MinTxFee,
+  sendChangeTo = alice.wallet.getAddress
+)
+
+val ergoLockSigned = alice.wallet.sign(ergoLockTransaction)
+ergoChainSim.send(ergoLockSigned)
+println(s"✓ Alice locked \${ergSwapAmount/1000000000.0} ERG on Ergo chain")
+println(s"  Secret Hash: \${crossChainSecretHash.take(16)}...")
+println(s"  Ergo Timeout: \${ergoTimeout} blocks (~\${ergoTimeout*2/60.0} hours)")
+println(s"  Bob can claim with secret, Alice can reclaim after timeout\n")
+
+// ========================================
+// PHASE 2: BOB RESPONDS ON BTC CHAIN
+// ========================================
+println("=== PHASE 2: BOB LOCKS BTC TOKENS ON BTC CHAIN (RESPONDER) ===\n")
+
+// Bob sees Alice's commitment and creates matching BTC lock
+val btcHTLCBox = Box(
+  value = MinBoxValue,
+  script = btcChainHTLC,
+  tokens = List((btcTokenId -> btcSwapAmount)),
+  registers = Map(
+    R4 -> crossChainSecretHash,          // Same secret hash as Alice's
+    R5 -> "ERGO_CHAIN".getBytes(),       // Counterparty chain identifier
+    R6 -> alicePubKeyBytes,             // Alice's public key (can claim with secret)
+    R7 -> bobPubKeyBytes,               // Bob's public key (can reclaim after timeout)
+    R8 -> btcTimeout                    // Shorter timeout for responder security
+  )
+)
+
+// Bob's BTC token lock transaction
+val btcLockTransaction = Transaction(
+  inputs = bob.selectUnspentBoxes(tokens = List((btcTokenId -> btcSwapAmount))) ++
+           bob.selectUnspentBoxes(toSpend = MinBoxValue + MinTxFee),
+  outputs = List(btcHTLCBox),
+  fee = MinTxFee,
+  sendChangeTo = bob.wallet.getAddress
+)
+
+val btcLockSigned = bob.wallet.sign(btcLockTransaction)
+btcChainSim.send(btcLockSigned)
+println(s"✓ Bob locked \${btcSwapAmount} BTC tokens on BTC chain")
+println(s"  Same Secret Hash: \${crossChainSecretHash.take(16)}...")
+println(s"  BTC Timeout: \${btcTimeout} blocks (~\${btcTimeout*2/60.0} hours)")
+println(s"  Alice can claim with secret, Bob can reclaim after timeout\n")
+
+// ========================================
+// PHASE 3: ALICE CLAIMS ON BTC CHAIN (REVEALS SECRET)
+// ========================================
+println("=== PHASE 3: ALICE CLAIMS BTC TOKENS (REVEALS SECRET) ===\n")
+
+// Alice claims Bob's BTC tokens by revealing the cross-chain secret
+val aliceBtcClaimBox = Box(
+  value = MinBoxValue - MinTxFee,
+  script = contract(alice.wallet.getAddress.pubKey),
+  tokens = List((btcTokenId -> btcSwapAmount))
+)
+
+val aliceBtcClaimTransaction = Transaction(
+  inputs = List(btcLockSigned.outputs(0)),
+  outputs = List(aliceBtcClaimBox),
+  fee = MinTxFee
+)
+
+// Alice provides the secret to claim BTC tokens
+val aliceBtcClaimWithSecret = aliceBtcClaimTransaction.copy(
+  inputs = aliceBtcClaimTransaction.inputs.map(_.copy(
+    extension = Map(R4 -> crossChainSecret.getBytes()) // Alice reveals the secret!
+  ))
+)
+
+val aliceBtcClaimSigned = alice.wallet.sign(aliceBtcClaimWithSecret)
+btcChainSim.send(aliceBtcClaimSigned)
+println(s"✓ Alice claimed \${btcSwapAmount} BTC tokens by revealing secret")
+println(s"  Revealed Secret: '\${crossChainSecret}'")
+println(s"  Secret is now PUBLIC on BTC chain blockchain!\n")
+
+// ========================================
+// PHASE 4: BOB CLAIMS ON ERGO CHAIN (USES REVEALED SECRET)
+// ========================================
+println("=== PHASE 4: BOB CLAIMS ERG USING REVEALED SECRET ===\n")
+
+// Bob monitors BTC chain, sees the revealed secret, uses it to claim ERG
+val bobErgClaimBox = Box(
+  value = ergSwapAmount - MinTxFee,
+  script = contract(bob.wallet.getAddress.pubKey)
+)
+
+val bobErgClaimTransaction = Transaction(
+  inputs = List(ergoLockSigned.outputs(0)),
+  outputs = List(bobErgClaimBox),
+  fee = MinTxFee
+)
+
+// Bob uses the now-revealed secret from Alice's BTC chain transaction
+val bobErgClaimWithSecret = bobErgClaimTransaction.copy(
+  inputs = bobErgClaimTransaction.inputs.map(_.copy(
+    extension = Map(R4 -> crossChainSecret.getBytes()) // Bob uses revealed secret
+  ))
+)
+
+val bobErgClaimSigned = bob.wallet.sign(bobErgClaimWithSecret)
+ergoChainSim.send(bobErgClaimSigned)
+println(s"✓ Bob claimed \${ergSwapAmount/1000000000.0} ERG using revealed secret")
+println(s"  Bob extracted secret from Alice's BTC chain transaction\n")
+
+// ========================================
+// CROSS-CHAIN ATOMIC SWAP COMPLETED!
+// ========================================
+println("=== CROSS-CHAIN ATOMIC SWAP SUCCESSFULLY COMPLETED! ===\n")
+println("Final State:")
+println(s"  Alice: Started with \${ergSwapAmount/1000000000.0} ERG → Now has \${btcSwapAmount} BTC tokens")
+println(s"  Bob:   Started with \${btcSwapAmount} BTC tokens → Now has \${(ergSwapAmount-MinTxFee)/1000000000.0} ERG")
+println("\nCross-Chain Atomic Properties Demonstrated:")
+println("  ✓ Same secret hash used on both chains")
+println("  ✓ Secret revelation on one chain enables claim on other")
+println("  ✓ Different timeout periods protect responder from timing attacks")
+println("  ✓ Atomic execution: either both parties get assets or both get refunds")
+println("  ✓ No trusted intermediaries required")
+println("  ✓ Complete cross-chain value transfer")
+
+// ========================================
+// DEMONSTRATION: TIMEOUT SCENARIO
+// ========================================
+println("\n=== DEMONSTRATING TIMEOUT PROTECTION MECHANISM ===\n")
+
+// Create a second swap to demonstrate timeout behavior
+val timeoutSecretHash = Blake2b256("different_secret_timeout_demo".getBytes())
+
+// Alice initiates another swap but won't reveal secret this time
+val timeoutErgoBox = Box(
+  value = 50000000L, // 0.05 ERG
+  script = ergoChainHTLC,
+  registers = Map(
+    R4 -> timeoutSecretHash,
+    R5 -> "BTC_CHAIN".getBytes(),
+    R6 -> bobPubKeyBytes,
+    R7 -> alicePubKeyBytes,
+    R8 -> 20L // Very short timeout for demo
+  )
+)
+
+val timeoutErgoTx = Transaction(
+  inputs = alice.selectUnspentBoxes(toSpend = 50000000L + MinTxFee),
+  outputs = List(timeoutErgoBox),
+  fee = MinTxFee,
+  sendChangeTo = alice.wallet.getAddress
+)
+
+val timeoutErgoSigned = alice.wallet.sign(timeoutErgoTx)
+ergoChainSim.send(timeoutErgoSigned)
+
+// Bob responds with BTC lock
+val timeoutBtcBox = Box(
+  value = MinBoxValue,
+  script = btcChainHTLC,
+  tokens = List((btcTokenId -> 1000L)),
+  registers = Map(
+    R4 -> timeoutSecretHash,
+    R5 -> "ERGO_CHAIN".getBytes(),
+    R6 -> alicePubKeyBytes,
+    R7 -> bobPubKeyBytes,
+    R8 -> 10L // Even shorter timeout
+  )
+)
+
+val timeoutBtcTx = Transaction(
+  inputs = bob.selectUnspentBoxes(tokens = List((btcTokenId -> 1000L))) ++
+           bob.selectUnspentBoxes(toSpend = MinBoxValue + MinTxFee),
+  outputs = List(timeoutBtcBox),
+  fee = MinTxFee,
+  sendChangeTo = bob.wallet.getAddress
+)
+
+val timeoutBtcSigned = bob.wallet.sign(timeoutBtcTx)
+btcChainSim.send(timeoutBtcSigned)
+
+// Simulate time passing beyond both timeouts
+ergoChainSim.advanceTime(30L)
+btcChainSim.advanceTime(30L)
+
+// Alice reclaims her ERG after timeout
+val aliceRefundBox = Box(
+  value = 50000000L - MinTxFee,
+  script = contract(alice.wallet.getAddress.pubKey)
+)
+
+val aliceRefundTx = Transaction(
+  inputs = List(timeoutErgoSigned.outputs(0)),
+  outputs = List(aliceRefundBox),
+  fee = MinTxFee
+)
+
+val aliceRefundSigned = alice.wallet.sign(aliceRefundTx)
+ergoChainSim.send(aliceRefundSigned)
+
+// Bob reclaims his BTC tokens after timeout
+val bobRefundBox = Box(
+  value = MinBoxValue - MinTxFee,
+  script = contract(bob.wallet.getAddress.pubKey),
+  tokens = List((btcTokenId -> 1000L))
+)
+
+val bobRefundTx = Transaction(
+  inputs = List(timeoutBtcSigned.outputs(0)),
+  outputs = List(bobRefundBox),
+  fee = MinTxFee
+)
+
+val bobRefundSigned = bob.wallet.sign(bobRefundTx)
+btcChainSim.send(bobRefundSigned)
+
+println("✓ Both parties reclaimed their assets after timeout")
+println("  This demonstrates the safety mechanism for incomplete swaps\n")
+
+// ========================================
+// EDUCATIONAL INSIGHTS
+// ========================================
+println("=== CROSS-CHAIN ATOMIC SWAP INSIGHTS ===\n")
+println("Key Cross-Chain Concepts:")
+println("  • Hash Time Lock Contracts (HTLCs) enable trustless cross-chain swaps")
+println("  • Same secret hash coordinates both chains without direct communication")
+println("  • Initiator (Alice) must move first to protect responder (Bob)")
+println("  • Different timeout periods prevent timing attacks")
+println("  • Secret revelation creates atomic claim mechanism")
+println("\nSecurity Model:")
+println("  • Longer timeout for Chain A protects initiator from quick timeout")
+println("  • Shorter timeout for Chain B protects responder from timing attacks")
+println("  • Timeout refunds prevent permanent fund locks")
+println("  • Hash commitment prevents front-running and ensures fairness")
+println("\nReal-World Applications:")
+println("  • Bitcoin ↔ Ethereum trustless trading")
+println("  • Cross-chain arbitrage opportunities")
+println("  • Decentralized cross-chain bridges")
+println("  • Multi-blockchain DeFi protocols")
+println("  • Privacy-focused cross-chain transactions")
+println("\nUTXO Flow Pattern:")
+println("  Chain A: Alice ERG → HTLC → Bob ERG")
+println("  Chain B: Bob BTC → HTLC → Alice BTC")
+println("  Coordination: Secret created by Alice, revealed when claiming, used by Bob")
+println("  Atomicity: Either both chains complete or both chains refund")`,
+
+  stealthAddress: `// COMPREHENSIVE STEALTH ADDRESS CONTRACT
+// Demonstrates complete privacy-preserving payment protocol with one-time addresses
+// Educational implementation showing cryptographic foundations and multi-phase UTXO flow
+
+// ========================================
+// STEALTH ADDRESS PROTOCOL CONFIGURATION
+// ========================================
+val stealthAmount = 100000000L // 0.1 ERG stealth payment
+val notificationFee = 1000000L // 0.001 ERG for notification box
+val detectionTimeout = 500L // blocks for payment detection phase
+val emergencyTimeout = 8640L // blocks for emergency recovery (~12 hours)
+
+// Cryptographic Parameters (in real implementation these would be actual EC points)
+val recipientViewKeyPriv = "view_key_d1e5f2a8b9c0e1f4a7b6c9d2e3f8a5b4c7d0e9f2a1b8c5d6e3f0a9b2c7d4e1f8"
+val recipientSpendKeyPriv = "spend_key_e7f1a4b5c8d9e2f5a0b3c6d9e4f7a2b5c8d1e6f9a4b7c0d3e8f1a6b9c2d5e0f3"
+val recipientViewKeyPub = "03view_pub_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1"
+val recipientSpendKeyPub = "03spend_pub_f4e5d6c7b8a9f0e1d2c3b4a5f6e7d8c9f0a1b2e3d4c5f6a7b8c9d0e1f2a3b4"
+
+// ========================================
+// STEALTH META-ADDRESS PUBLICATION CONTRACT
+// ========================================
+val stealthMetaAddressScript = s"""
+{
+  // =====================================
+  // STEALTH META-ADDRESS DATA STRUCTURE
+  // =====================================
+  // This contract stores the recipient's public keys for stealth address generation
+  // Format: (viewPubKey, spendPubKey, version, metadata)
+  val recipientViewKey = SELF.R4[Coll[Byte]].get // Recipient's view public key
+  val recipientSpendKey = SELF.R5[Coll[Byte]].get // Recipient's spend public key
+  val stealthVersion = SELF.R6[Int].get // Protocol version (for upgradability)
+  val metaAddressId = SELF.R7[Coll[Byte]].get // Unique meta-address identifier
+  
+  // =====================================
+  // META-ADDRESS OPERATIONS
+  // =====================================
+  val updateMetaAddress = {
+    // Recipient can update their meta-address (new keys, version upgrade)
+    val newViewKey = INPUTS(0).R4[Coll[Byte]].getOrElse(Coll[Byte]())
+    val newSpendKey = INPUTS(0).R5[Coll[Byte]].getOrElse(Coll[Byte]())
+    val newVersion = INPUTS(0).R6[Int].getOrElse(0)
+    val authorizedUpdate = sigmaProp("$recipientSpendKeyPriv") // Owner authorization
+    
+    authorizedUpdate && {
+      // Preserve meta-address ID and update keys/version
+      OUTPUTS(0).R4[Coll[Byte]].get == newViewKey &&
+      OUTPUTS(0).R5[Coll[Byte]].get == newSpendKey &&
+      OUTPUTS(0).R6[Int].get == newVersion &&
+      OUTPUTS(0).R7[Coll[Byte]].get == metaAddressId &&
+      OUTPUTS(0).value >= SELF.value - MinTxFee
+    }
+  }
+  
+  val queryMetaAddress = {
+    // Anyone can query the meta-address for stealth address generation
+    // This is read-only operation that doesn't change the box
+    OUTPUTS(0).propositionBytes == SELF.propositionBytes &&
+    OUTPUTS(0).value == SELF.value &&
+    OUTPUTS(0).R4[Coll[Byte]].get == recipientViewKey &&
+    OUTPUTS(0).R5[Coll[Byte]].get == recipientSpendKey &&
+    OUTPUTS(0).R6[Int].get == stealthVersion &&
+    OUTPUTS(0).R7[Coll[Byte]].get == metaAddressId
+  }
+  
+  updateMetaAddress || queryMetaAddress
+}
+""".stripMargin
+
+// ========================================
+// ONE-TIME STEALTH ADDRESS CONTRACT
+// ========================================
+val stealthAddressScript = s"""
+{
+  // =====================================
+  // STEALTH ADDRESS STATE AND CRYPTOGRAPHY
+  // =====================================
+  val ephemeralPubKey = SELF.R4[Coll[Byte]].get // Sender's ephemeral public key
+  val encryptedPayload = SELF.R5[Coll[Byte]].get // Encrypted payment metadata
+  val stealthVersion = SELF.R6[Int].get // Protocol version
+  val paymentNonce = SELF.R7[Coll[Byte]].get // Unique payment nonce
+  val detectionDeadline = SELF.R8[Long].get // Recipient detection timeout
+  
+  // =====================================
+  // RECIPIENT CLAIM MECHANISM
+  // =====================================
+  val recipientClaim = {
+    // Recipient proves knowledge of one-time private key derived from shared secret
+    val providedSharedSecret = INPUTS(0).R4[Coll[Byte]].getOrElse(Coll[Byte]())
+    val providedOneTimeKey = INPUTS(0).R5[Coll[Byte]].getOrElse(Coll[Byte]())
+    
+    // Verify shared secret derivation: ECDH(ephemeralPub, recipientViewPriv)
+    // In real implementation this would use actual elliptic curve operations
+    val expectedSharedSecret = blake2b256(ephemeralPubKey ++ "$recipientViewKeyPriv".getBytes())
+    val validSharedSecret = blake2b256(providedSharedSecret) == blake2b256(expectedSharedSecret)
+    
+    // Verify one-time key derivation: Hash(sharedSecret || recipientSpendPriv)
+    val expectedOneTimeKey = blake2b256(expectedSharedSecret ++ "$recipientSpendKeyPriv".getBytes())
+    val validOneTimeKey = blake2b256(providedOneTimeKey) == blake2b256(expectedOneTimeKey)
+    
+    // Validate recipient's ability to spend
+    val recipientSpend = {
+      // Recipient gets the stealth amount minus fees
+      OUTPUTS(0).value >= SELF.value - MinTxFee &&
+      // Output can be to any address (recipient's choice)
+      OUTPUTS(0).propositionBytes != SELF.propositionBytes
+    }
+    
+    // Additional privacy protections
+    val withinDetectionWindow = HEIGHT <= SELF.creationInfo._1 + detectionDeadline
+    val validVersion = stealthVersion == 1 // Current protocol version
+    
+    validSharedSecret && validOneTimeKey && recipientSpend && withinDetectionWindow && validVersion
+  }
+  
+  // =====================================
+  // EMERGENCY RECOVERY MECHANISM
+  // =====================================
+  val emergencyRecovery = {
+    // Long timeout allows recipient to recover funds even if detection fails
+    val isEmergencyTimeout = HEIGHT > SELF.creationInfo._1 + $emergencyTimeout
+    val emergencySpendKey = sigmaProp("$recipientSpendKeyPriv")
+    
+    isEmergencyTimeout && emergencySpendKey && {
+      // Emergency recovery with reduced amount due to timeout penalty
+      val penaltyAmount = MinTxFee * 2 // Small penalty for timeout recovery
+      OUTPUTS(0).value >= SELF.value - penaltyAmount
+    }
+  }
+  
+  // =====================================
+  // FORWARD SECRECY PROTECTION
+  // =====================================
+  val forwardSecrecyCleanup = {
+    // After successful claim, ensure no cryptographic material is leaked
+    // This would involve zero-knowledge proofs in real implementation
+    OUTPUTS.forall(output => {
+      // Ensure no stealth-related registers in outputs
+      output.R4[Coll[Byte]].isEmpty &&
+      output.R5[Coll[Byte]].isEmpty &&
+      output.R6[Int].isEmpty &&
+      output.R7[Coll[Byte]].isEmpty
+    })
+  }
+  
+  // =====================================
+  // CONTRACT VALIDATION LOGIC
+  // =====================================
+  (recipientClaim && forwardSecrecyCleanup) || emergencyRecovery
+}
+""".stripMargin
+
+// ========================================
+// NOTIFICATION SYSTEM CONTRACT
+// ========================================
+val notificationScript = s"""
+{
+  // =====================================
+  // STEALTH PAYMENT NOTIFICATION
+  // =====================================
+  // This contract creates a notification for the recipient to scan for payments
+  // It contains encrypted information about the stealth payment
+  
+  val notificationData = SELF.R4[Coll[Byte]].get // Encrypted notification data
+  val recipientHint = SELF.R5[Coll[Byte]].get // Hint for recipient scanning
+  val paymentReference = SELF.R6[Coll[Byte]].get // Reference to stealth payment box
+  val notificationVersion = SELF.R7[Int].get // Notification protocol version
+  
+  // =====================================
+  // NOTIFICATION CONSUMPTION
+  // =====================================
+  val consumeNotification = {
+    // Anyone can consume notification (it's public information)
+    // But only meaningful to the intended recipient
+    val validConsumption = {
+      // Notification is burned after consumption for privacy
+      OUTPUTS.size >= 0 && // Can have zero outputs (notification burned)
+      // Or outputs don't contain notification data
+      OUTPUTS.forall(output => {
+        output.R4[Coll[Byte]].isEmpty &&
+        output.R5[Coll[Byte]].isEmpty &&
+        output.R6[Coll[Byte]].isEmpty &&
+        output.R7[Int].isEmpty
+      })
+    }
+    
+    validConsumption
+  }
+  
+  // =====================================
+  // NOTIFICATION TIMEOUT
+  // =====================================
+  val notificationTimeout = {
+    // After detection timeout, notification can be cleaned up
+    HEIGHT > SELF.creationInfo._1 + $detectionTimeout
+  }
+  
+  consumeNotification || notificationTimeout
+}
+""".stripMargin
+
+// Compile all stealth address contracts
+val stealthMetaContract = ErgoScriptCompiler.compile(Map(), stealthMetaAddressScript)
+val stealthAddressContract = ErgoScriptCompiler.compile(Map(), stealthAddressScript)
+val notificationContract = ErgoScriptCompiler.compile(Map(), notificationScript)
+
+// ========================================
+// BLOCKCHAIN SIMULATION SETUP
+// ========================================
+val blockchainSim = newBlockChainSimulationScenario("Comprehensive Stealth Address Protocol")
+val recipientParty = blockchainSim.newParty("Alice_Recipient") // Publishes meta-address
+val senderParty = blockchainSim.newParty("Bob_Sender") // Makes stealth payment
+val scannerParty = blockchainSim.newParty("Charlie_Scanner") // Demonstrates scanning
+
+// Initialize party funds
+val recipientInitialFunds = 50000000L // 0.05 ERG for meta-address setup
+val senderInitialFunds = 300000000L // 0.3 ERG for payment + fees
+val scannerFunds = 20000000L // 0.02 ERG for scanning fees
+
+recipientParty.generateUnspentBoxes(toSpend = recipientInitialFunds)
+senderParty.generateUnspentBoxes(toSpend = senderInitialFunds)
+scannerParty.generateUnspentBoxes(toSpend = scannerFunds)
+
+// ========================================
+// PHASE 1: RECIPIENT PUBLISHES STEALTH META-ADDRESS
+// ========================================
+println("=== PHASE 1: ALICE PUBLISHES STEALTH META-ADDRESS ===\n")
+
+val metaAddressId = Blake2b256("alice_stealth_meta_address_v1".getBytes())
+
+val metaAddressBox = Box(
+  value = 20000000L, // 0.02 ERG for meta-address storage
+  script = stealthMetaContract,
+  registers = Map(
+    R4 -> recipientViewKeyPub.getBytes(), // Alice's view public key
+    R5 -> recipientSpendKeyPub.getBytes(), // Alice's spend public key
+    R6 -> 1, // Protocol version 1
+    R7 -> metaAddressId // Unique meta-address identifier
+  )
+)
+
+val metaAddressTransaction = Transaction(
+  inputs = recipientParty.selectUnspentBoxes(toSpend = 25000000L),
+  outputs = List(metaAddressBox),
+  fee = MinTxFee,
+  sendChangeTo = recipientParty.wallet.getAddress
+)
+
+val metaAddressTransactionSigned = recipientParty.wallet.sign(metaAddressTransaction)
+blockchainSim.send(metaAddressTransactionSigned)
+println("✓ Alice published stealth meta-address on blockchain")
+println(s"  Meta-Address ID: \${metaAddressId.take(16)}...")
+println(s"  View Key: \${recipientViewKeyPub.take(20)}...")
+println(s"  Spend Key: \${recipientSpendKeyPub.take(20)}...")
+println(s"  Protocol Version: 1\n")
+
+// ========================================
+// PHASE 2: SENDER GENERATES STEALTH ADDRESS
+// ========================================
+println("=== PHASE 2: BOB GENERATES ONE-TIME STEALTH ADDRESS ===\n")
+
+// Bob queries Alice's meta-address from the blockchain
+val aliceViewKey = recipientViewKeyPub.getBytes()
+val aliceSpendKey = recipientSpendKeyPub.getBytes()
+
+// Bob generates ephemeral key pair
+val ephemeralPrivKey = Blake2b256("bob_ephemeral_random_seed_12345".getBytes())
+val ephemeralPubKey = "03ephemeral_" + ephemeralPrivKey.take(32).map("%02x".format(_)).mkString
+
+// Bob computes shared secret using ECDH
+val sharedSecret = Blake2b256(ephemeralPubKey.getBytes() ++ recipientViewKeyPriv.getBytes())
+
+// Bob derives one-time stealth address
+val oneTimeAddress = Blake2b256(sharedSecret ++ recipientSpendKeyPriv.getBytes())
+
+// Bob creates encrypted payload with payment metadata
+val paymentMetadata = "stealth_payment_0.1_ERG_from_Bob_to_Alice"
+val encryptedPayload = Blake2b256(paymentMetadata.getBytes() ++ sharedSecret)
+val paymentNonce = Blake2b256("payment_nonce_unique_12345".getBytes())
+
+println("✓ Bob generated ephemeral key pair")
+println(s"  Ephemeral Public Key: \${ephemeralPubKey.take(32)}...")
+println("✓ Bob computed shared secret using ECDH")
+println(s"  Shared Secret: \${sharedSecret.take(16)}...")
+println("✓ Bob derived one-time stealth address")
+println(s"  One-time Address: \${oneTimeAddress.take(16)}...\n")
+
+// ========================================
+// PHASE 3: SENDER CREATES STEALTH PAYMENT
+// ========================================
+println("=== PHASE 3: BOB CREATES STEALTH PAYMENT ===\n")
+
+// Create stealth payment box
+val stealthPaymentBox = Box(
+  value = stealthAmount,
+  script = stealthAddressContract,
+  registers = Map(
+    R4 -> ephemeralPubKey.getBytes(), // Ephemeral public key for ECDH
+    R5 -> encryptedPayload, // Encrypted payment metadata
+    R6 -> 1, // Protocol version
+    R7 -> paymentNonce, // Unique payment identifier
+    R8 -> detectionTimeout // Detection deadline
+  )
+)
+
+// Create notification box for recipient scanning
+val notificationHint = Blake2b256(aliceViewKey ++ paymentNonce)
+val notificationData = Blake2b256(ephemeralPubKey.getBytes() ++ encryptedPayload)
+
+val notificationBox = Box(
+  value = notificationFee,
+  script = notificationContract,
+  registers = Map(
+    R4 -> notificationData, // Encrypted notification data
+    R5 -> notificationHint, // Hint for recipient scanning
+    R6 -> paymentNonce, // Reference to payment
+    R7 -> 1 // Notification version
+  )
+)
+
 val stealthPaymentTransaction = Transaction(
-  inputs = senderParty.selectUnspentBoxes(toSpend = stealthAmount + MinTxFee),
-  outputs = List(stealthBox),
+  inputs = senderParty.selectUnspentBoxes(toSpend = stealthAmount + notificationFee + (2 * MinTxFee)),
+  outputs = List(stealthPaymentBox, notificationBox),
   fee = MinTxFee,
   sendChangeTo = senderParty.wallet.getAddress
 )
 
 val stealthPaymentSigned = senderParty.wallet.sign(stealthPaymentTransaction)
 blockchainSim.send(stealthPaymentSigned)
+println(s"✓ Bob created stealth payment of \${stealthAmount/1000000000.0} ERG")
+println(s"  Payment Box Value: \${stealthAmount/1000000000.0} ERG")
+println(s"  Notification Box Value: \${notificationFee/1000000000.0} ERG")
+println(s"  Encrypted Payload: \${encryptedPayload.take(16)}...")
+println(s"  Payment Nonce: \${paymentNonce.take(16)}...")
+println("✓ Payment is now anonymous - no direct link to Alice visible\n")
 
-// Step 5: Recipient scans blockchain and detects payment
-// They compute the shared secret using their view key and the ephemeral public key
-val recipientComputedSecret = Blake2b256(
-  (recipientViewKey + ephemeralPubKey).getBytes()
-) // Recipient's ECDH computation
+// ========================================
+// PHASE 4: RECIPIENT SCANS AND DETECTS PAYMENT
+// ========================================
+println("=== PHASE 4: ALICE SCANS BLOCKCHAIN AND DETECTS PAYMENT ===\n")
 
-// Step 6: Recipient computes one-time private key
-val recipientOneTimePrivKey = Blake2b256(
-  recipientComputedSecret ++ recipientSpendKey.getBytes()
+// Alice scans notification boxes for potential payments
+val detectedNotificationHint = Blake2b256(aliceViewKey ++ paymentNonce) 
+val expectedNotificationHint = notificationHint
+
+// Alice detects the notification matches her view key
+val notificationMatches = detectedNotificationHint.sameElements(expectedNotificationHint)
+
+// Alice reconstructs the shared secret from the ephemeral public key
+val aliceComputedSharedSecret = Blake2b256(
+  ephemeralPubKey.getBytes() ++ recipientViewKeyPriv.getBytes()
 )
 
-// Step 7: Recipient spends from stealth address
-val recipientBox = Box(
+// Alice derives the one-time private key
+val aliceOneTimePrivKey = Blake2b256(
+  aliceComputedSharedSecret ++ recipientSpendKeyPriv.getBytes()
+)
+
+// Alice decrypts the payment metadata
+val aliceDecryptedPayload = Blake2b256(paymentMetadata.getBytes() ++ aliceComputedSharedSecret)
+val payloadMatches = aliceDecryptedPayload.sameElements(encryptedPayload)
+
+println("✓ Alice scanned blockchain for stealth payments")
+println(s"  Notification Detection: \${if (notificationMatches) "SUCCESS" else "FAILED"}")
+println(s"  Shared Secret Reconstruction: \${aliceComputedSharedSecret.take(16)}...")
+println(s"  One-time Private Key: \${aliceOneTimePrivKey.take(16)}...")
+println(s"  Payload Decryption: \${if (payloadMatches) "SUCCESS" else "FAILED"}")
+println(s"  Detected Payment Amount: \${stealthAmount/1000000000.0} ERG\n")
+
+// ========================================
+// PHASE 5: RECIPIENT CLAIMS STEALTH PAYMENT
+// ========================================
+println("=== PHASE 5: ALICE CLAIMS STEALTH PAYMENT ===\n")
+
+// Alice creates claim transaction
+val aliceFinalBox = Box(
   value = stealthAmount - MinTxFee,
   script = contract(recipientParty.wallet.getAddress.pubKey)
 )
 
-val stealthSpendTransaction = Transaction(
-  inputs = List(stealthPaymentSigned.outputs(0)),
-  outputs = List(recipientBox),
+val stealthClaimTransaction = Transaction(
+  inputs = List(stealthPaymentSigned.outputs(0)), // Stealth payment box
+  outputs = List(aliceFinalBox),
   fee = MinTxFee
 )
 
-// Recipient proves knowledge of one-time private key
-val stealthSpendWithProof = stealthSpendTransaction.copy(
-  inputs = stealthSpendTransaction.inputs.map(_.copy(
-    extension = Map(R4 -> recipientComputedSecret) // Proof of shared secret knowledge
+// Alice provides cryptographic proof of ownership
+val stealthClaimWithProof = stealthClaimTransaction.copy(
+  inputs = stealthClaimTransaction.inputs.map(_.copy(
+    extension = Map(
+      R4 -> aliceComputedSharedSecret, // Proof of shared secret knowledge
+      R5 -> aliceOneTimePrivKey // Proof of one-time private key derivation
+    )
   ))
 )
 
-val stealthSpendSigned = recipientParty.wallet.sign(stealthSpendWithProof)
-blockchainSim.send(stealthSpendSigned)
+val stealthClaimSigned = recipientParty.wallet.sign(stealthClaimWithProof)
+blockchainSim.send(stealthClaimSigned)
+println("✓ Alice successfully claimed stealth payment")
+println(s"  Claimed Amount: \${(stealthAmount - MinTxFee)/1000000000.0} ERG")
+println("✓ Cryptographic proofs validated")
+println("✓ Forward secrecy maintained - no stealth data in outputs\n")
 
-// Payment completed with enhanced privacy!
-// Observer cannot link sender to recipient without view keys`
+// ========================================
+// PHASE 6: NOTIFICATION CLEANUP
+// ========================================
+println("=== PHASE 6: NOTIFICATION CLEANUP ===\n")
+
+// Clean up notification box for privacy
+val notificationCleanupTransaction = Transaction(
+  inputs = List(stealthPaymentSigned.outputs(1)), // Notification box
+  outputs = List(), // No outputs - notification burned for privacy
+  fee = notificationFee // Use notification value as fee
+)
+
+val notificationCleanupSigned = scannerParty.wallet.sign(notificationCleanupTransaction)
+blockchainSim.send(notificationCleanupSigned)
+println("✓ Notification box cleaned up for enhanced privacy")
+println("✓ No permanent record of stealth payment linkage\n")
+
+// ========================================
+// STEALTH ADDRESS PROTOCOL COMPLETED
+// ========================================
+println("=== STEALTH ADDRESS PROTOCOL COMPLETED SUCCESSFULLY! ===\n")
+println("Final Privacy Analysis:")
+println(s"  Alice: Received \${(stealthAmount - MinTxFee)/1000000000.0} ERG with full privacy")
+println(s"  Bob: Sent \${stealthAmount/1000000000.0} ERG without revealing recipient")
+println("  Blockchain Observers: Cannot link Bob's payment to Alice without view keys")
+println("\nPrivacy Properties Demonstrated:")
+println("  ✓ One-time addresses prevent address reuse")
+println("  ✓ Ephemeral keys provide forward secrecy")
+println("  ✓ Encrypted payloads hide payment metadata")
+println("  ✓ ECDH shared secrets enable secure communication")
+println("  ✓ Notification system enables efficient scanning")
+println("  ✓ No permanent linkability between sender and recipient")
+
+// ========================================
+// EDUCATIONAL INSIGHTS AND IMPLICATIONS
+// ========================================
+println("\n=== EDUCATIONAL INSIGHTS ===\n")
+println("Stealth Address Cryptographic Foundations:")
+println("  • ECDH (Elliptic Curve Diffie-Hellman) for shared secret derivation")
+println("  • One-time key generation using cryptographic hashing")
+println("  • View keys for payment detection, spend keys for fund access")
+println("  • Ephemeral keys prevent long-term key compromise")
+println("\nPrivacy vs Usability Trade-offs:")
+println("  • Enhanced privacy requires more complex scanning processes")
+println("  • Notification system reduces scanning overhead")
+println("  • Meta-address publication enables discoverability")
+println("  • Emergency recovery mechanisms prevent fund loss")
+println("\nUTXO Flow Pattern:")
+println("  Meta-Address → Stealth Payment + Notification → Recipient Claim")
+println("  Privacy Metadata: Ephemeral keys, encrypted payloads, shared secrets")
+println("  Unlinkability: Observer cannot connect sender to recipient")
+println("\nReal-World Applications:")
+println("  • Private donations and payments")
+println("  • Corporate privacy for business transactions")
+println("  • Protection against transaction graph analysis")
+println("  • Enhanced fungibility for digital assets")
+println("  • Privacy-preserving recurring payments")
+println("\nSecurity Considerations:")
+println("  • View key sharing enables payment detection")
+println("  • Spend key compromise allows fund access")
+println("  • Ephemeral key generation must be truly random")
+println("  • Notification scanning reveals potential recipients")
+println("  • Emergency timeouts balance recovery with privacy")`
 };
 
 const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample }) => {

@@ -1113,173 +1113,205 @@ val ergLockBox = Box(
       id: 'doubleChainSwap',
       title: 'Cross-Chain Atomic Swap',
       difficulty: 'expert',
-      simpleExplanation: 'Like trading baseball cards with someone in another country using two separate mailboxes. You each put your card in a locked mailbox in your own country, but both boxes use the same key. When one person unlocks their mailbox to get a card, the key becomes available for the other person to unlock theirs too.',
-      realWorldAnalogy: 'It\'s like those international pen pal exchanges where you and someone in another country each put a gift in your local post office\'s secure box. Both boxes have the same combination lock, so when one person opens their box anywhere in the world, the combination becomes known and the other person can open theirs too.',
+      simpleExplanation: 'Like trading baseball cards with someone in another country using two separate banks. You each put your card in a vault in your own country, but both vaults use the same secret code. When one person uses the code to get their card, the code becomes public so the other person can use it too - but if neither person acts quickly enough, you both get your cards back.',
+      realWorldAnalogy: 'It\'s like those international spy movie exchanges where agents in different countries each put their briefcase in a time-locked safe with the same combination. When one agent opens their safe anywhere in the world, the combination becomes visible to everyone, so the other agent can immediately use it to open theirs. But if too much time passes, the safes automatically return the briefcases to their original owners.',
       concepts: [
         {
+          term: 'Hash Time Lock Contract (HTLC)',
+          simpleDefinition: 'A smart contract that locks assets with both a secret password and a time limit on each blockchain',
+          analogy: 'Like a timed safe that opens either with the right combination or automatically returns contents after the timer expires'
+        },
+        {
           term: 'Cross-Chain Communication',
-          simpleDefinition: 'Making two separate blockchains work together even though they can\'t directly talk to each other',
-          analogy: 'Like coordinating a dance between people in different rooms who can\'t hear each other but follow the same music'
+          simpleDefinition: 'Making two separate blockchains coordinate a trade even though they can\'t directly talk to each other',
+          analogy: 'Like coordinating a treasure hunt between people in different countries who can\'t call each other but follow the same map'
         },
         {
-          term: 'Chain A and Chain B',
-          simpleDefinition: 'Two different blockchain networks involved in the swap',
-          analogy: 'Like two different countries with their own postal systems and currencies'
+          term: 'Secret Hash Synchronization',
+          simpleDefinition: 'Using the same scrambled password on both chains so revealing it on one chain reveals it everywhere',
+          analogy: 'Like using the same riddle answer for two different treasure chests - solving it for one chest gives you the solution for both'
         },
         {
-          term: 'Initiator and Responder',
-          simpleDefinition: 'The person who starts the swap and the person who responds to it',
-          analogy: 'Like the person who makes the first move in chess and the person who responds to it'
+          term: 'Initiator vs Responder Security',
+          simpleDefinition: 'The person who starts the swap gets more time, while the responder gets protection from timing tricks',
+          analogy: 'Like in a relay race - the first runner gets a head start, but the second runner gets to see where the finish line is'
         },
         {
-          term: 'Timeout Ordering',
-          simpleDefinition: 'Setting different deadlines for each chain so the responder is protected',
-          analogy: 'Like giving the second person less time to act so they can\'t wait until the last second to cheat'
+          term: 'Atomic Cross-Chain Execution',
+          simpleDefinition: 'Either both people get what they want on both chains, or both get their original assets back - no partial trades',
+          analogy: 'Like a magical bridge that either transports both people completely to the other side, or brings both back to where they started'
         }
       ],
       players: [
-        'Chain A Party (initiator, has ERG on Chain A)',
-        'Chain B Party (responder, has tokens on Chain B)',
-        'Chain A Smart Contract (manages ERG locking and claims)',
-        'Chain B Smart Contract (manages token locking and claims)'
+        'Alice (initiator on Ergo chain, has ERG, wants BTC)',
+        'Bob (responder on Bitcoin chain, has BTC, wants ERG)',
+        'Ergo Chain HTLC Contract (manages ERG locking with longer timeout)',
+        'Bitcoin Chain HTLC Contract (manages BTC locking with shorter timeout)',
+        'Cross-Chain Monitoring System (watches both chains for secret reveals)'
       ],
       rules: [
-        'Chain A Party creates a secret and locks ERG on Chain A with longer timeout (200 blocks)',
-        'Chain B Party sees this and locks tokens on Chain B with shorter timeout (100 blocks)',
-        'Chain A Party must claim tokens on Chain B first, revealing the secret',
-        'Chain B Party uses the revealed secret to claim ERG on Chain A',
-        'Different timeout periods protect Chain B Party from timing attacks',
-        'If swaps don\'t complete, each party can reclaim their assets after timeout'
+        'Alice (initiator) creates a secret and locks 0.1 ERG on Ergo chain with longer timeout (288 blocks ≈ 9.6 hours)',
+        'Bob (responder) sees Alice\'s commitment and locks 0.0005 BTC on Bitcoin chain with shorter timeout (144 blocks ≈ 4.8 hours)',
+        'Both contracts use the same secret hash for coordination across chains',
+        'Alice must claim BTC tokens first, revealing the secret on Bitcoin chain',
+        'Bob monitors Bitcoin chain, extracts the revealed secret, and uses it to claim ERG on Ergo chain',
+        'Shorter timeout on Bitcoin chain protects Bob from timing attacks by Alice',
+        'If Alice never claims BTC, both parties can reclaim their original assets after respective timeouts',
+        'Cross-chain secret revelation creates atomic execution across both blockchains'
       ],
       processSteps: [
         {
           step: 1,
-          title: 'Chain A Initiates Swap',
-          description: 'Chain A Party locks ERG with a secret hash and longer timeout period',
-          visualMetaphor: 'Like putting money in a timed safe in your country with a 4-hour timer',
-          codeSnippet: `// Chain A contract (longer timeout)
-val chainATimeout = 200L // blocks
-val chainALockBox = Box(
-  value = swapAmount,
-  script = chainAContract // Requires secret or timeout
+          title: 'Alice Locks ERG on Ergo Chain',
+          description: 'Alice creates a secret, hashes it, and locks 0.1 ERG in an HTLC contract on Ergo with a 9.6 hour timeout',
+          visualMetaphor: 'Like putting your money in a time-locked vault in your home country with a long timer, and posting a scrambled riddle about the combination',
+          codeSnippet: `// Alice locks ERG with secret hash and long timeout
+val ergoHTLCBox = Box(
+  value = ergSwapAmount, // 0.1 ERG
+  script = ergoChainHTLC,
+  registers = Map(
+    R4 -> crossChainSecretHash,  // Hashed secret
+    R5 -> "BTC_CHAIN".getBytes(), // Target chain
+    R8 -> ergoTimeout // 288 blocks (~9.6 hours)
+  )
 )`
         },
         {
           step: 2,
-          title: 'Chain B Responds',
-          description: 'Chain B Party sees the commitment and locks tokens with same hash but shorter timeout',
-          visualMetaphor: 'Like seeing the safe in your country and putting tokens in your own safe with a 2-hour timer',
-          codeSnippet: `// Chain B contract (shorter timeout for security)
-val chainBTimeout = 100L // blocks  
-val chainBLockBox = Box(
+          title: 'Bob Locks BTC on Bitcoin Chain',
+          description: 'Bob sees Alice\'s commitment and locks 0.0005 BTC with the same secret hash but shorter 4.8 hour timeout for protection',
+          visualMetaphor: 'Like seeing the vault in your country and putting your assets in your own vault with the same riddle but a shorter timer for safety',
+          codeSnippet: `// Bob locks BTC with same hash but shorter timeout
+val btcHTLCBox = Box(
   value = MinBoxValue,
-  script = chainBContract, // Same hash requirement
-  tokens = List((chainBTokenId -> chainBTokenAmount))
+  script = btcChainHTLC,
+  tokens = List((btcTokenId -> btcSwapAmount)),
+  registers = Map(
+    R4 -> crossChainSecretHash, // Same hash as Alice
+    R8 -> btcTimeout // 144 blocks (~4.8 hours)
+  )
 )`
         },
         {
           step: 3,
-          title: 'Chain A Claims on Chain B',
-          description: 'Chain A Party must move first, claiming tokens on Chain B and revealing the secret',
-          visualMetaphor: 'Like the first person opening their foreign safe, which makes the combination public',
-          codeSnippet: `val chainBClaimTransaction = Transaction(
-  inputs = List(chainBLockBox),
-  outputs = List(chainBClaimBox),
-  // Reveals the secret on Chain B
-  extension = Map(R4 -> "cross_chain_secret_here".getBytes())
+          title: 'Alice Claims BTC (Reveals Secret)',
+          description: 'Alice must move first by claiming Bob\'s BTC tokens on Bitcoin chain, which reveals the secret publicly',
+          visualMetaphor: 'Like Alice solving the riddle publicly to open Bob\'s vault, which lets everyone see the solution',
+          codeSnippet: `// Alice reveals secret to claim BTC
+val aliceBtcClaimWithSecret = aliceBtcClaimTransaction.copy(
+  inputs = aliceBtcClaimTransaction.inputs.map(_.copy(
+    extension = Map(R4 -> crossChainSecret.getBytes()) // Secret revealed!
+  ))
 )`
         },
         {
           step: 4,
-          title: 'Chain B Claims on Chain A',
-          description: 'Chain B Party uses the now-revealed secret to claim ERG on Chain A',
-          visualMetaphor: 'Like using the public combination to open the safe in the other country and get the money',
-          codeSnippet: `val chainAClaimTransaction = Transaction(
-  inputs = List(chainALockBox),
-  outputs = List(chainAClaimBox),
-  // Uses the revealed secret from Chain B
-  extension = Map(R4 -> "cross_chain_secret_here".getBytes())
+          title: 'Bob Claims ERG (Uses Revealed Secret)',
+          description: 'Bob monitors Bitcoin chain, extracts the revealed secret from Alice\'s transaction, and uses it to claim ERG on Ergo chain',
+          visualMetaphor: 'Like Bob watching Alice solve the riddle, memorizing the solution, then using it to open Alice\'s vault in his country',
+          codeSnippet: `// Bob uses revealed secret to claim ERG
+val bobErgClaimWithSecret = bobErgClaimTransaction.copy(
+  inputs = bobErgClaimTransaction.inputs.map(_.copy(
+    extension = Map(R4 -> crossChainSecret.getBytes()) // Uses Alice's revealed secret
+  ))
 )`
         },
         {
           step: 5,
-          title: 'Cross-Chain Swap Complete',
-          description: 'Both parties now have their desired assets on their respective chains',
-          visualMetaphor: 'Like both people successfully getting their traded items delivered to their home countries',
-          codeSnippet: `// Final state:
-// Chain A Party: has tokens on Chain B
-// Chain B Party: has ERG on Chain A
-// Cross-chain value transfer completed atomically`
+          title: 'Cross-Chain Swap Completed',
+          description: 'Both parties now have their desired assets: Alice has BTC, Bob has ERG. The atomic swap succeeded across both blockchains',
+          visualMetaphor: 'Like both traders successfully exchanging their valuables across different countries without any trusted middleman',
+          codeSnippet: `// Final atomic result:
+// Alice: 0.1 ERG → 0.0005 BTC (cross-chain)
+// Bob: 0.0005 BTC → 0.1 ERG (cross-chain)
+// Both blockchains coordinated atomically
+// Secret is now public on both chains`
         }
       ],
       commonMistakes: [
-        'Setting the same timeout for both chains (creates timing attack vulnerability)',
-        'Chain A Party waiting too long to claim on Chain B (timeout risk)',
-        'Not properly monitoring both blockchains for transaction confirmations',
-        'Using different hash functions on different chains',
-        'Not accounting for different block times between chains',
-        'Forgetting that Chain A Party must move first to protect Chain B Party'
+        'Setting identical timeouts for both chains (creates timing attack vulnerability - responder needs protection)',
+        'Alice waiting too long to claim BTC tokens (risks timeout and losing both assets)',
+        'Using different hash functions on different chains (breaks secret synchronization)',
+        'Not monitoring both blockchains simultaneously for transaction confirmations',
+        'Forgetting that Alice (initiator) must reveal secret first by claiming on Bob\'s chain',
+        'Not accounting for different block confirmation times between Ergo (~2 min) and Bitcoin (~10 min)',
+        'Using predictable or weak secrets that could be brute-forced',
+        'Misunderstanding that once secret is revealed on any chain, it becomes public everywhere'
       ],
       quiz: [
         {
-          question: 'Why does Chain A have a longer timeout than Chain B?',
+          question: 'Why does Alice (Ergo chain) have a longer timeout than Bob (Bitcoin chain)?',
           options: [
-            'Chain A is slower',
-            'To protect Chain B Party from timing attacks',
-            'Chain A is more secure',
-            'It\'s just random'
+            'Ergo blocks are slower than Bitcoin blocks',
+            'To protect Bob from timing attacks where Alice waits until the last second',
+            'Alice needs more time because she\'s the initiator',
+            'It\'s just a random choice'
           ],
           correctAnswer: 1,
-          explanation: 'Chain B has a shorter timeout so Chain B Party can\'t wait until the last second to claim on Chain A, leaving Chain A Party unable to claim on Chain B!'
+          explanation: 'Bob gets a shorter timeout so Alice can\'t wait until the last second to claim BTC, leaving Bob unable to claim ERG before his timeout expires. This protects the responder from timing attacks!'
         },
         {
-          question: 'Who must reveal the secret first in a cross-chain swap?',
+          question: 'What happens when Alice claims BTC tokens on the Bitcoin chain?',
           options: [
-            'Chain B Party (the responder)',
-            'Chain A Party (the initiator)',
-            'Either party can go first',
-            'The smart contracts reveal it automatically'
+            'The secret stays hidden until Bob also claims',
+            'The secret becomes publicly visible on the Bitcoin blockchain',
+            'Only Bob can see the secret',
+            'The secret gets encrypted again'
           ],
           correctAnswer: 1,
-          explanation: 'Chain A Party (initiator) must claim first on Chain B, revealing the secret. This protects Chain B Party from being left hanging!'
+          explanation: 'When Alice reveals the secret to claim BTC, it becomes permanently visible on the Bitcoin blockchain! Bob can then extract this public secret and use it to claim ERG.'
         },
         {
-          question: 'What\'s the biggest challenge in cross-chain swaps compared to single-chain swaps?',
+          question: 'What\'s the main challenge that makes cross-chain swaps more complex than single-chain swaps?',
           options: [
-            'Higher transaction fees',
-            'More complex smart contracts',
-            'The chains can\'t communicate directly with each other',
-            'They take longer to complete'
-          ],
-          correctAnswer: 2,
-          explanation: 'The chains are completely separate networks that can\'t talk to each other. Participants must monitor both chains and coordinate manually!'
-        },
-        {
-          question: 'If Chain A Party never claims tokens on Chain B, what happens?',
-          options: [
-            'Chain B Party gets both the tokens and the ERG',
-            'Both parties can eventually reclaim their original assets via timeout',
-            'The assets are lost forever',
-            'Chain B Party automatically gets the ERG'
+            'Cross-chain swaps cost much more in fees',
+            'The blockchains cannot directly communicate with each other',
+            'Cross-chain swaps take weeks to complete',
+            'You need special cross-chain tokens'
           ],
           correctAnswer: 1,
-          explanation: 'If no one reveals the secret before the timeouts, both parties can reclaim their original assets. The timeout mechanism protects everyone from incomplete swaps!'
+          explanation: 'Ergo and Bitcoin are completely separate networks that can\'t talk to each other directly. The HTLC mechanism uses matching secret hashes to coordinate without direct communication!'
+        },
+        {
+          question: 'If Alice locks ERG but never claims BTC tokens, what happens to both parties\' assets?',
+          options: [
+            'Bob gets both the BTC and the ERG automatically',
+            'Both Alice and Bob can reclaim their original assets after their respective timeouts',
+            'The assets are lost forever in the smart contracts',
+            'Alice loses her ERG but Bob keeps his BTC'
+          ],
+          correctAnswer: 1,
+          explanation: 'If the secret is never revealed (Alice doesn\'t claim), both timeout mechanisms activate: Alice gets her ERG back after 9.6 hours, Bob gets his BTC back after 4.8 hours. No one loses money!'
+        },
+        {
+          question: 'Why must Alice (initiator) move first by claiming BTC before Bob can claim ERG?',
+          options: [
+            'Alice created the secret so she has to use it first',
+            'To prevent both parties from being stuck waiting for the other to move',
+            'Bitcoin transactions are faster than Ergo transactions',
+            'It\'s a rule built into both smart contracts'
+          ],
+          correctAnswer: 1,
+          explanation: 'This prevents a deadlock! If both parties could move first, they might both wait for the other to reveal the secret first. Making Alice move first breaks the deadlock and protects Bob.'
         }
       ],
       funFacts: [
-        'The first cross-chain atomic swap was between Bitcoin and Litecoin in September 2017!',
-        'Modern cross-chain bridges handle billions of dollars but many use trusted validators instead of pure atomic swaps',
-        'Some protocols like Thorchain and AtomicDEX specialize in cross-chain atomic swaps',
-        'Cross-chain swaps can take hours to complete due to different block confirmation times',
-        'Advanced versions use submarine swaps and payment channels to reduce waiting times'
+        'The first real cross-chain atomic swap was between Bitcoin and Litecoin on September 20, 2017!',
+        'Cross-chain atomic swaps eliminate the need for centralized exchanges, but most people still use CEXs for convenience',
+        'Modern cross-chain bridges handle billions of dollars but many use trusted validators instead of pure HTLCs',
+        'Bitcoin-Ethereum atomic swaps can take 6+ hours due to Bitcoin\'s 10-minute blocks vs Ethereum\'s 12-second blocks',
+        'Some advanced protocols use \'submarine swaps\' to hide the amounts being traded for better privacy',
+        'The same HTLC technology powers Bitcoin\'s Lightning Network for instant payments!'
       ],
       practicalUses: [
-        'Trading Bitcoin for Ethereum tokens without centralized exchanges',
-        'Cross-chain arbitrage opportunities for traders',
-        'Building decentralized cross-chain bridges',
-        'Enabling multi-chain DeFi applications',
-        'Privacy-focused cross-chain transactions',
-        'Interoperability between different blockchain ecosystems'
+        'Trading Bitcoin for Ethereum tokens without using Binance or Coinbase',
+        'Cross-chain arbitrage: buying cheap tokens on one chain, selling expensive on another',
+        'Building trustless bridges between blockchain ecosystems (no FTX-style risks)',
+        'Enabling multi-chain DeFi: using Bitcoin as collateral for Ethereum loans',
+        'Privacy-focused trading: swap assets without KYC or revealing identity to exchanges',
+        'Connecting isolated blockchain communities (Bitcoin maximalists trading with DeFi users)',
+        'Emergency exit strategies: escaping failing chains by swapping to safer ones',
+        'Reducing counter-party risk: no need to trust centralized exchange custody'
       ]
     },
     {

@@ -129,4 +129,44 @@
   background: rgba(0, 0, 0, 0.2);
   border-radius: 12px;
   overflow: hidden;
+  /* Ensure content container doesn't exceed viewport */
+  max-height: calc(100vh - 200px);
+  /* Ensure diagram content is immediately visible */
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================================================ */
+/* Responsive Design for Contract Tester */
+/* ============================================================================ */
+
+@media (max-width: 768px) {
+  .contract-content {
+    max-height: calc(100vh - 150px);
+  }
+  
+  .contract-tabs {
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  
+  .tab {
+    padding: 0.75rem 1rem;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .contract-content {
+    max-height: calc(100vh - 120px);
+  }
+  
+  .tab {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+  }
+  
+  .header-info h2 {
+    font-size: 1.5rem;
+  }
 }

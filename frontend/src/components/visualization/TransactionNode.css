@@ -1,35 +1,51 @@
+/* Enhanced Transaction Node Styling */
+
 .transaction-node {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
   border: 2px solid #6b7280;
-  border-radius: 8px;
-  padding: 10px;
-  min-width: 180px;
-  max-width: 220px;
-  font-family: 'Inter', system-ui, sans-serif;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-  transition: all 0.3s ease;
+  border-radius: 16px;
+  padding: 14px;
+  min-width: 220px;
+  max-width: 300px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.15),
+    0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  backdrop-filter: blur(8px);
-  /* Diamond-like shape with clipped corners */
-  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+  color: white;
+}
+
+.transaction-node.enhanced {
+  background: rgba(30, 41, 59, 0.9);
+  border-radius: 18px;
+  overflow: hidden;
 }
 
 .transaction-node:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  transform: translateY(-3px);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.25),
+    0 4px 16px rgba(0, 0, 0, 0.15);
+  border-width: 3px;
 }
 
 .transaction-node.selected {
   border-width: 3px;
-  box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.3);
+  box-shadow: 
+    0 0 0 4px rgba(107, 114, 128, 0.3),
+    0 8px 32px rgba(0, 0, 0, 0.25);
+  transform: translateY(-2px);
 }
 
 .transaction-node.highlighted {
-  animation: txPulse 1.5s infinite;
+  animation: txPulse 2s infinite;
 }
 
 .transaction-node.active {
-  animation: txActiveGlow 1s ease-in-out infinite alternate;
+  animation: txActiveGlow 1.5s ease-in-out infinite alternate;
 }
 
 @keyframes txPulse {
@@ -38,11 +54,582 @@
 }
 
 @keyframes txActiveGlow {
-  0% { box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2); }
-  100% { box-shadow: 0 3px 15px rgba(107, 114, 128, 0.4); }
+  0% { 
+    box-shadow: 
+      0 4px 16px rgba(0, 0, 0, 0.15),
+      0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  100% { 
+    box-shadow: 
+      0 4px 24px rgba(107, 114, 128, 0.4),
+      0 8px 32px rgba(107, 114, 128, 0.2);
+  }
 }
 
-/* Type-based styling */
+/* Protocol Badge */
+.transaction-node .protocol-badge {
+  position: absolute;
+  top: -8px;
+  right: 12px;
+  background: #059669;
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 12px;
+  letter-spacing: 0.5px;
+  z-index: 10;
+}
+
+/* Transaction Header */
+.tx-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.tx-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.tx-id-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tx-id {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: white;
+  font-family: 'Monaco', 'Menlo', 'SF Mono', monospace;
+}
+
+.tx-type {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tx-status-icon {
+  flex-shrink: 0;
+}
+
+/* Transaction Summary */
+.tx-summary {
+  margin-bottom: 10px;
+}
+
+.tx-io-count {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.io-group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.io-label {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.io-value {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: white;
+  font-family: 'Monaco', 'Menlo', 'SF Mono', monospace;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.io-separator {
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 700;
+}
+
+.tx-fee-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+}
+
+.fee-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+}
+
+.fee-value {
+  color: #fbbf24;
+  font-weight: 700;
+  font-family: 'Monaco', 'Menlo', 'SF Mono', monospace;
+}
+
+/* DEX Operation Info */
+.dex-operation-info {
+  background: rgba(5, 150, 105, 0.2);
+  border: 1px solid rgba(5, 150, 105, 0.3);
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.operation-type {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.operation-details {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.price {
+  font-family: 'Monaco', 'Menlo', 'SF Mono', monospace;
+  color: #10b981;
+}
+
+.volume {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Atomic Exchange Info */
+.atomic-exchange-info {
+  background: rgba(124, 58, 237, 0.2);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.exchange-type {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #a855f7;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.exchange-participants,
+.participants {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Protocol Stage Info */
+.protocol-stage-info {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+}
+
+.stage-indicator {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #3b82f6;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 2px;
+}
+
+.protocol-name {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: capitalize;
+}
+
+/* Expandable Details */
+.tx-details-expanded {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tx-details-expanded .detail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 0.7rem;
+}
+
+.tx-details-expanded .detail-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+  min-width: 60px;
+  flex-shrink: 0;
+}
+
+.tx-details-expanded .detail-value {
+  color: rgba(255, 255, 255, 0.9);
+  font-family: 'Monaco', 'Menlo', 'SF Mono', monospace;
+}
+
+.value-flow .value-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.input-value,
+.output-value {
+  font-size: 0.65rem;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.input-value {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
+.output-value {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+}
+
+/* Execution Context */
+.execution-context .execution-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gas-used,
+.contracts-count {
+  font-size: 0.65rem;
+  padding: 1px 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Validation Section */
+.validation-section {
+  margin-top: 8px;
+  padding: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+}
+
+.validation-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.validation-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.validation-status {
+  margin-left: auto;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.validation-status.valid {
+  color: #10b981;
+}
+
+.validation-status.invalid {
+  color: #ef4444;
+}
+
+.validation-content {
+  margin-top: 6px;
+  padding-left: 18px;
+}
+
+.erg-conservation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 0.65rem;
+}
+
+.conservation-label {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.conservation-status {
+  font-weight: 600;
+}
+
+.conservation-status.valid {
+  color: #10b981;
+}
+
+.conservation-status.invalid {
+  color: #ef4444;
+}
+
+.validation-errors {
+  margin-top: 4px;
+}
+
+.errors-label {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+}
+
+.errors-list {
+  list-style: none;
+  padding: 0;
+  margin: 2px 0 0 0;
+}
+
+.error-item {
+  font-size: 0.6rem;
+  color: #fca5a5;
+  padding: 1px 0;
+}
+
+/* Error Information */
+.error-info {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 6px;
+  padding: 6px;
+  margin-top: 6px;
+}
+
+.error-info .detail-row.error {
+  margin-bottom: 4px;
+}
+
+.error-message {
+  color: #fca5a5 !important;
+  font-size: 0.65rem;
+}
+
+.recovery-options {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 0.65rem;
+}
+
+.recovery-label {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.recovery-count {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+/* Transaction Description */
+.tx-description {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-style: italic;
+  padding: 6px 8px;
+  margin-top: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  border-left: 3px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Status Badge */
+.status-badge {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Progress Indicator */
+.stage-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 0 0 16px 16px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: #3b82f6;
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Enhanced Handle Styling */
+.tx-handle {
+  width: 14px;
+  height: 14px;
+  border: 2px solid white;
+  background: #6b7280;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.tx-handle.input-handle {
+  left: -7px;
+}
+
+.tx-handle.output-handle {
+  right: -7px;
+}
+
+.tx-handle:hover {
+  width: 16px;
+  height: 16px;
+  border-width: 3px;
+  box-shadow: 
+    0 0 0 3px rgba(255, 255, 255, 0.3),
+    0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Transaction Type Specific Styling */
+.transaction-node.dex_order_placement,
+.transaction-node.dex_partial_match,
+.transaction-node.dex_full_match {
+  border-color: #059669;
+  background: rgba(5, 150, 105, 0.1);
+}
+
+.transaction-node.dex_order_cancel {
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.transaction-node.dex_fee_collection {
+  border-color: #ea580c;
+  background: rgba(234, 88, 12, 0.1);
+}
+
+.transaction-node.atomic_bid_placement {
+  border-color: #0891b2;
+  background: rgba(8, 145, 178, 0.1);
+}
+
+.transaction-node.atomic_ask_placement {
+  border-color: #7c3aed;
+  background: rgba(124, 58, 237, 0.1);
+}
+
+.transaction-node.atomic_settlement {
+  border-color: #d97706;
+  background: rgba(217, 119, 6, 0.1);
+}
+
+.transaction-node.atomic_refund {
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.transaction-node.contract_deployment,
+.transaction-node.contract_interaction {
+  border-color: #7c3aed;
+  background: rgba(124, 58, 237, 0.1);
+}
+
+.transaction-node.contract_upgrade {
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.transaction-node.contract_termination {
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.transaction-node.governance {
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.transaction-node.oracle_update {
+  border-color: #7c3aed;
+  background: rgba(124, 58, 237, 0.1);
+}
+
+.transaction-node.multisig_setup,
+.transaction-node.multisig_execution {
+  border-color: #059669;
+  background: rgba(5, 150, 105, 0.1);
+}
+
+.transaction-node.proxy_operation {
+  border-color: #4f46e5;
+  background: rgba(79, 70, 229, 0.1);
+}
+
+.transaction-node.simple_transfer,
+.transaction-node.multi_output {
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.transaction-node.consolidation {
+  border-color: #6b7280;
+  background: rgba(107, 114, 128, 0.1);
+}
+
+/* Legacy transaction types */
 .transaction-node.deposit {
   border-color: #059669;
   background: rgba(5, 150, 105, 0.1);
@@ -63,48 +650,45 @@
   background: rgba(37, 99, 235, 0.1);
 }
 
-/* Status-based styling */
-.transaction-node.failed {
+/* Status-based Styling */
+.transaction-node.failed,
+.transaction-node.rejected {
   border-color: #ef4444;
   background: rgba(239, 68, 68, 0.1);
+  animation: errorPulse 2s ease-in-out infinite alternate;
 }
 
-.transaction-node.pending {
+.transaction-node.pending,
+.transaction-node.building {
   border-color: #f59e0b;
   background: rgba(245, 158, 11, 0.1);
-  animation: pendingPulse 2s infinite;
+  animation: pendingGlow 2s ease-in-out infinite alternate;
 }
 
-@keyframes pendingPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+.transaction-node.deeply_confirmed {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
 }
 
-.tx-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
+@keyframes errorPulse {
+  0% { opacity: 1; }
+  100% { opacity: 0.7; }
 }
 
-.tx-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+@keyframes pendingGlow {
+  0% { 
+    box-shadow: 
+      0 4px 16px rgba(0, 0, 0, 0.15),
+      0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  100% { 
+    box-shadow: 
+      0 4px 24px rgba(245, 158, 11, 0.4),
+      0 8px 32px rgba(245, 158, 11, 0.2);
+  }
 }
 
-.tx-id {
-  flex: 1;
-  font-weight: 600;
-  font-size: 0.85rem;
-  color: white;
-}
-
-.tx-status {
-  display: flex;
-  align-items: center;
-}
-
+/* Legacy styles for backwards compatibility */
 .tx-type-badge {
   display: inline-block;
   padding: 2px 6px;
@@ -124,46 +708,11 @@
   margin-bottom: 6px;
 }
 
-.tx-io-count {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.io-label {
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.io-value {
-  font-weight: 700;
-  color: white;
-  font-family: 'Monaco', 'Menlo', monospace;
-}
-
-.io-separator {
-  color: rgba(255, 255, 255, 0.5);
-  margin: 0 2px;
-}
-
 .tx-fee {
   display: flex;
   align-items: center;
   gap: 4px;
   font-size: 0.7rem;
-}
-
-.fee-label {
-  color: rgba(255, 255, 255, 0.6);
-  font-weight: 500;
-}
-
-.fee-value {
-  color: #fbbf24;
-  font-family: 'Monaco', 'Menlo', monospace;
-  font-weight: 600;
 }
 
 .tx-signer {
@@ -181,15 +730,6 @@
 .signer-value {
   color: #60a5fa;
   font-weight: 600;
-}
-
-.tx-description {
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.7);
-  font-style: italic;
-  padding-top: 4px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  line-height: 1.2;
 }
 
 .tx-status-indicator {
@@ -219,24 +759,48 @@
   50% { opacity: 0.3; }
 }
 
-/* Handle styling */
-.tx-handle {
-  width: 10px;
-  height: 10px;
-  border: 2px solid white;
-  border-radius: 50%;
+/* Responsive Design */
+@media (max-width: 768px) {
+  .transaction-node {
+    min-width: 180px;
+    max-width: 240px;
+    padding: 12px;
+  }
+  
+  .tx-id {
+    font-size: 0.85rem;
+  }
+  
+  .tx-type {
+    font-size: 0.6rem;
+  }
+  
+  .io-value {
+    font-size: 0.75rem;
+    padding: 1px 4px;
+  }
+  
+  .tx-details-expanded .detail-row {
+    font-size: 0.65rem;
+  }
 }
 
-.tx-handle.input-handle {
-  left: -5px;
-}
-
-.tx-handle.output-handle {
-  right: -5px;
-}
-
-.tx-handle:hover {
-  width: 12px;
-  height: 12px;
-  border-width: 3px;
+@media (max-width: 480px) {
+  .transaction-node {
+    min-width: 160px;
+    max-width: 200px;
+    padding: 10px;
+  }
+  
+  .tx-header {
+    gap: 8px;
+  }
+  
+  .tx-summary {
+    margin-bottom: 8px;
+  }
+  
+  .io-group {
+    gap: 2px;
+  }
 }

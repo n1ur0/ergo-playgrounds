@@ -21,7 +21,7 @@ import type {
 interface ContractAnalysis {
   spendingConditions: SpendingCondition[];
   hasOwnerFallback: boolean;
-  contractType: 'dex_order' | 'atomic_exchange' | 'multisig' | 'time_locked' | 'escrow' | 'generic';
+  contractType: 'dex_order' | 'atomic_exchange' | 'multisig' | 'time_locked' | 'escrow' | 'stealth_address' | 'generic';
   registerValidations: RegisterValidation[];
   tokenValidations: TokenValidation[];
   outputFilters: OutputFilter[];
@@ -77,6 +77,21 @@ interface RefundPattern {
   triggerCondition: string;
   refundTarget: 'owner' | 'specific_party';
   refundAssets: Array<{ type: 'ERG' | 'TOKEN'; amount: string; tokenId?: string }>;
+}
+
+interface StealthAddressPattern {
+  stealthType: 'meta_address' | 'stealth_payment' | 'notification' | 'one_time_address';
+  phase: 'setup' | 'payment' | 'detection' | 'claiming' | 'cleanup';
+  privacyLevel: 'high' | 'medium' | 'low';
+  privacyMechanism: 'ecdh_shared_secret' | 'ephemeral_keys' | 'encrypted_payload' | 'forward_secrecy';
+  cryptographicProof: 'shared_secret_knowledge' | 'one_time_key_derivation' | 'view_key_validation';
+  forwardSecrecy: boolean;
+  ephemeralKey?: string;
+  viewKey?: string;
+  spendKey?: string;
+  encryptedPayload?: string;
+  detectionHint?: string;
+  oneTimeAddress?: string;
 }
 
 interface TransactionFlow {
@@ -138,14 +153,33 @@ class EnhancedContractParser {
   private boxCounter = 0;
   private transactionCounter = 0;
   private relationshipCounter = 0;
+  
+  // Performance optimization caches
+  private parseResultCache = new Map<string, EnhancedVisualizationData>();
+  private contractAnalysisCache = new Map<string, ContractAnalysis>();
+  private maxCacheSize = 100; // Limit cache size to prevent memory issues
 
   public parseContract(code: string): EnhancedVisualizationData {
+    // Performance optimization: Check cache first
+    const cacheKey = this.generateCacheKey(code);
+    if (this.parseResultCache.has(cacheKey)) {
+      console.log('[ContractParser] Cache hit for contract parsing');
+      return this.parseResultCache.get(cacheKey)!;
+    }
+    
+    console.log('[ContractParser] Cache miss, parsing contract from scratch');
+    
+    // Clear stale cache entries if we're approaching the limit
+    this.manageCacheSize();
+    
     const boxes: EnhancedUTXOBox[] = [];
     const transactions: EnhancedUTXOTransaction[] = [];
     const relationships: BoxRelationship[] = [];
     const parties = new Map<string, any>();
     const tokens = new Map<string, any>();
     const contracts = new Map<string, any>();
+    
+    try {
 
     // Extract parties with enhanced metadata
     this.extractParties(code, parties);
@@ -174,16 +208,16 @@ class EnhancedContractParser {
     // Analyze box state transitions and register linkages
     this.analyzeBoxStateTransitions(code, boxes, relationships);
 
-    // Identify DEX and atomic exchange patterns
-    this.identifyProtocolPatterns(code, boxes, transactions);
+      // Identify DEX and atomic exchange patterns
+      this.identifyProtocolPatterns(code, boxes, transactions);
 
-    return {
-      boxes,
-      transactions,
-      relationships,
-      parties: Array.from(parties.values()),
-      tokens: Array.from(tokens.values()),
-      contracts: Array.from(contracts.values()),
+      const result: EnhancedVisualizationData = {
+        boxes,
+        transactions,
+        relationships,
+        parties: Array.from(parties.values()),
+        tokens: Array.from(tokens.values()),
+        contracts: Array.from(contracts.values()),
       tokenFlows: this.analyzeTokenFlows(boxes, transactions),
       ergFlows: this.analyzeErgFlows(boxes, transactions, parties),
       protocolContext: this.extractProtocolContext(code),
@@ -192,6 +226,42 @@ class EnhancedContractParser {
         grouping: 'type'
       }
     };
+    
+    // Cache the successful result
+    this.parseResultCache.set(cacheKey, result);
+    console.log(`[ContractParser] Cached parsing result for key: ${cacheKey.substring(0, 16)}...`);
+    
+    return result;
+    
+    } catch (error) {
+      console.error('[ContractParser] Error during contract parsing:', error);
+      
+      // Return a minimal fallback result to prevent complete failure
+      const fallbackResult: EnhancedVisualizationData = {
+        boxes: [],
+        transactions: [],
+        relationships: [],
+        parties: [],
+        tokens: [],
+        contracts: [],
+        tokenFlows: new Map(),
+        ergFlows: new Map(),
+        protocolContext: {
+          contractTypes: [],
+          scenarios: [],
+          complexityScore: 0,
+          privacyLevel: 'none',
+          interactionPattern: 'simple'
+        },
+        layoutHints: {
+          algorithm: 'force',
+          grouping: 'type'
+        }
+      };
+      
+      // Don't cache failed parsing attempts
+      return fallbackResult;
+    }
   }
 
   // ============================================================================
@@ -764,6 +834,84 @@ class EnhancedContractParser {
     return patterns;
   }
 
+  private identifyStealthAddressPatterns(code: string): StealthAddressPattern[] {
+    const patterns: StealthAddressPattern[] = [];
+    
+    // Meta-address publication patterns
+    const metaAddressMatches = code.matchAll(/metaAddressBox|stealthMetaContract|MetaAddress/g);
+    for (const match of metaAddressMatches) {
+      patterns.push({
+        stealthType: 'meta_address',
+        phase: 'setup',
+        privacyLevel: 'high',
+        privacyMechanism: 'ephemeral_keys',
+        cryptographicProof: 'view_key_validation',
+        forwardSecrecy: true,
+        viewKey: 'recipientViewKeyPub',
+        spendKey: 'recipientSpendKeyPub'
+      });
+    }
+    
+    // Stealth payment creation patterns
+    const stealthPaymentMatches = code.matchAll(/stealthPaymentBox|ephemeralPubKey|sharedSecret/g);
+    for (const match of stealthPaymentMatches) {
+      patterns.push({
+        stealthType: 'stealth_payment',
+        phase: 'payment',
+        privacyLevel: 'high',
+        privacyMechanism: 'ecdh_shared_secret',
+        cryptographicProof: 'shared_secret_knowledge',
+        forwardSecrecy: true,
+        ephemeralKey: 'ephemeralPubKey',
+        encryptedPayload: 'encryptedPayload',
+        oneTimeAddress: 'oneTimeAddress'
+      });
+    }
+    
+    // Notification system patterns
+    const notificationMatches = code.matchAll(/notificationBox|notificationHint|recipientHint/g);
+    for (const match of notificationMatches) {
+      patterns.push({
+        stealthType: 'notification',
+        phase: 'detection',
+        privacyLevel: 'medium',
+        privacyMechanism: 'encrypted_payload',
+        cryptographicProof: 'view_key_validation',
+        forwardSecrecy: false,
+        detectionHint: 'notificationHint'
+      });
+    }
+    
+    // One-time address claim patterns
+    const oneTimeClaimMatches = code.matchAll(/stealthClaimTransaction|providedSharedSecret|oneTimePrivKey/g);
+    for (const match of oneTimeClaimMatches) {
+      patterns.push({
+        stealthType: 'one_time_address',
+        phase: 'claiming',
+        privacyLevel: 'high',
+        privacyMechanism: 'forward_secrecy',
+        cryptographicProof: 'one_time_key_derivation',
+        forwardSecrecy: true,
+        oneTimeAddress: 'computedOneTimeAddress'
+      });
+    }
+    
+    // Cleanup and privacy preservation patterns
+    const cleanupMatches = code.matchAll(/notificationCleanup|forwardSecrecy|outputs.*isEmpty/g);
+    for (const match of cleanupMatches) {
+      patterns.push({
+        stealthType: 'notification',
+        phase: 'cleanup',
+        privacyLevel: 'high',
+        privacyMechanism: 'forward_secrecy',
+        cryptographicProof: 'shared_secret_knowledge',
+        forwardSecrecy: true
+      });
+    }
+    
+    return patterns;
+  }
+
   // ============================================================================
   // TRANSACTION FLOW ANALYSIS
   // ============================================================================
@@ -844,74 +992,159 @@ class EnhancedContractParser {
     this.analyzeChangeOutputs(code, transactions, boxes, relationships);
   }
 
+  // ============================================================================
+  // ENHANCED BOX REFERENCE RESOLUTION WITH CACHING
+  // ============================================================================
+  
+  private boxLookupCache = new Map<string, EnhancedUTXOBox | null>();
+  private transactionDependencyCache = new Map<string, string[]>();
+
   private findBoxByReference(inputRef: string, boxes: EnhancedUTXOBox[], code: string): EnhancedUTXOBox | null {
-    // Direct box reference
-    const directBox = boxes.find(box => box.id === inputRef || inputRef.includes(box.id));
-    if (directBox) return directBox;
-    
-    // Handle party unspent box pattern (converted from selectUnspentBoxes)
-    if (inputRef.includes('_unspent_boxes')) {
-      const partyMatch = inputRef.match(/(\w+)Party_unspent_boxes/);
-      if (partyMatch) {
-        const partyName = partyMatch[1].toLowerCase();
-        // Find the party's initial funding box
-        const partyBox = boxes.find(box => 
-          box.owner === partyName || 
-          box.parties.includes(partyName) ||
-          box.id.toLowerCase().includes(partyName)
-        );
-        return partyBox || null;
-      }
+    // Check cache first for performance optimization
+    const cacheKey = `${inputRef}_${boxes.length}`;
+    if (this.boxLookupCache.has(cacheKey)) {
+      return this.boxLookupCache.get(cacheKey)!;
     }
+
+    const result = this.findBoxByReferenceInternal(inputRef, boxes, code);
     
-    // Handle legacy selectUnspentBoxes pattern (for backward compatibility)
-    if (inputRef.includes('selectUnspentBoxes')) {
-      const partyMatch = inputRef.match(/(\w+)Party\.selectUnspentBoxes/);
-      if (partyMatch) {
-        const partyName = partyMatch[1].toLowerCase();
-        // Find the party's initial funding box
-        const partyBox = boxes.find(box => 
-          box.owner === partyName || 
-          box.parties.includes(partyName) ||
-          box.id.toLowerCase().includes(partyName)
-        );
-        return partyBox || null;
-      }
+    // Cache the result for future lookups
+    this.boxLookupCache.set(cacheKey, result);
+    return result;
+  }
+
+  private findBoxByReferenceInternal(inputRef: string, boxes: EnhancedUTXOBox[], code: string): EnhancedUTXOBox | null {
+    // Priority 1: Exact ID match (highest precision)
+    const exactMatch = boxes.find(box => box.id === inputRef);
+    if (exactMatch) {
+      console.log(`[BoxResolver] Exact match found for ${inputRef}: ${exactMatch.id}`);
+      return exactMatch;
     }
-    
-    // Handle transaction output references with index (e.g., "depositTransactionSigned_output_0")
-    const outputWithIndexMatch = inputRef.match(/(\w+)_output_(\d+)/);
+
+    // Priority 2: Specific transaction output references with precise parsing
+    const outputWithIndexMatch = inputRef.match(/^(\w+(?:Transaction(?:Signed)?))_output_(\d+)$/);
     if (outputWithIndexMatch) {
       const txName = outputWithIndexMatch[1];
       const outputIndex = parseInt(outputWithIndexMatch[2]);
       const outputBoxId = `${txName}_output_${outputIndex}`;
-      return boxes.find(box => box.id === outputBoxId) || null;
-    }
-    
-    // Handle transaction output references without index (e.g., "depositTransactionSigned_output")
-    const outputMatch = inputRef.match(/(\w+)_output$/);
-    if (outputMatch) {
-      const txName = outputMatch[1];
-      // Try to find output with index 0 first, then any output
-      let outputBoxId = `${txName}_output_0`;
-      let outputBox = boxes.find(box => box.id === outputBoxId);
-      if (!outputBox) {
-        // Look for any output box from this transaction
-        outputBox = boxes.find(box => box.id.startsWith(`${txName}_output_`));
-      }
+      const outputBox = boxes.find(box => box.id === outputBoxId);
+      console.log(`[BoxResolver] Transaction output match for ${inputRef}: ${outputBox?.id || 'not found'}`);
       return outputBox || null;
     }
-    
-    // Handle direct transaction output references like "depositTransactionSigned.outputs(0)"
-    const directOutputMatch = inputRef.match(/(\w+)\.outputs\((\d+)\)/);
+
+    // Priority 3: Direct transaction output references (e.g., "depositTransactionSigned.outputs(0)")
+    const directOutputMatch = inputRef.match(/^(\w+(?:Transaction(?:Signed)?))\.outputs\((\d+)\)$/);
     if (directOutputMatch) {
       const txName = directOutputMatch[1];
       const outputIndex = parseInt(directOutputMatch[2]);
       const outputBoxId = `${txName}_output_${outputIndex}`;
-      return boxes.find(box => box.id === outputBoxId) || null;
+      const outputBox = boxes.find(box => box.id === outputBoxId);
+      console.log(`[BoxResolver] Direct output reference match for ${inputRef}: ${outputBox?.id || 'not found'}`);
+      return outputBox || null;
+    }
+
+    // Priority 4: Party unspent box patterns with enhanced matching
+    const partyUnspentMatch = inputRef.match(/(\w+)Party(?:_unspent_boxes|\.selectUnspentBoxes)/);
+    if (partyUnspentMatch) {
+      const partyName = partyUnspentMatch[1].toLowerCase();
+      
+      // Look for party's initial funding box with multiple criteria
+      const partyBox = boxes.find(box => {
+        const matchesOwner = box.owner === partyName;
+        const matchesParticipant = box.parties.includes(partyName);
+        const matchesIdPattern = box.id.toLowerCase().includes(partyName);
+        const isWalletBox = box.boxType === 'wallet' || box.boxType === 'funding';
+        const isUnspent = box.state === 'unspent';
+        
+        return (matchesOwner || matchesParticipant || matchesIdPattern) && isWalletBox && isUnspent;
+      });
+      
+      console.log(`[BoxResolver] Party unspent match for ${inputRef} (${partyName}): ${partyBox?.id || 'not found'}`);
+      return partyBox || null;
+    }
+
+    // Priority 5: Named box references (partial matching with validation)
+    const namedBoxMatch = boxes.find(box => {
+      const boxNameFromId = box.id.replace(/(_output_\d+|Box)$/, '');
+      const refNameCleaned = inputRef.replace(/(_output_\d*|Box)$/, '');
+      return boxNameFromId === refNameCleaned && box.description?.includes(refNameCleaned);
+    });
+    
+    if (namedBoxMatch) {
+      console.log(`[BoxResolver] Named box match for ${inputRef}: ${namedBoxMatch.id}`);
+      return namedBoxMatch;
+    }
+
+    // Priority 6: Contract box linkage via registers (R4 parent-child relationships)
+    const registerLinkedBox = boxes.find(box => {
+      const r4Data = box.registers.R4;
+      if (r4Data && typeof r4Data === 'object' && 'boxId' in r4Data) {
+        return r4Data.boxId === inputRef || inputRef.includes(r4Data.boxId);
+      }
+      return false;
+    });
+    
+    if (registerLinkedBox) {
+      console.log(`[BoxResolver] Register-linked match for ${inputRef}: ${registerLinkedBox.id}`);
+      return registerLinkedBox;
+    }
+
+    // Priority 7: Fuzzy matching with strict validation (last resort)
+    const fuzzyMatches = boxes.filter(box => {
+      const similarity = this.calculateStringSimilarity(inputRef.toLowerCase(), box.id.toLowerCase());
+      return similarity > 0.7; // 70% similarity threshold
+    });
+    
+    if (fuzzyMatches.length === 1) {
+      console.log(`[BoxResolver] Fuzzy match for ${inputRef}: ${fuzzyMatches[0].id}`);
+      return fuzzyMatches[0];
+    } else if (fuzzyMatches.length > 1) {
+      console.warn(`[BoxResolver] Multiple fuzzy matches for ${inputRef}, using first: ${fuzzyMatches[0].id}`);
+      return fuzzyMatches[0];
     }
     
+    console.warn(`[BoxResolver] No match found for input reference: ${inputRef}`);
     return null;
+  }
+
+  /**
+   * Calculate string similarity for fuzzy matching
+   */
+  private calculateStringSimilarity(str1: string, str2: string): number {
+    const longer = str1.length > str2.length ? str1 : str2;
+    const shorter = str1.length > str2.length ? str2 : str1;
+    
+    if (longer.length === 0) return 1.0;
+    
+    const editDistance = this.levenshteinDistance(longer, shorter);
+    return (longer.length - editDistance) / longer.length;
+  }
+
+  /**
+   * Calculate Levenshtein distance between two strings
+   */
+  private levenshteinDistance(str1: string, str2: string): number {
+    const matrix = Array.from({ length: str2.length + 1 }, (_, i) => [i]);
+    
+    for (let j = 1; j <= str1.length; j++) {
+      matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= str2.length; i++) {
+      for (let j = 1; j <= str1.length; j++) {
+        if (str2[i - 1] === str1[j - 1]) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1, // substitution
+            matrix[i][j - 1] + 1,     // insertion
+            matrix[i - 1][j] + 1      // deletion
+          );
+        }
+      }
+    }
+    
+    return matrix[str2.length][str1.length];
   }
 
   private findOrCreateOutputBox(
@@ -1092,6 +1325,7 @@ class EnhancedContractParser {
   ): void {
     const dexPatterns = this.identifyDEXPatterns(code);
     const atomicPatterns = this.identifyAtomicExchangePatterns(code);
+    const stealthPatterns = this.identifyStealthAddressPatterns(code);
     
     // Apply DEX patterns to enhance box and transaction data
     for (const pattern of dexPatterns) {
@@ -1127,6 +1361,49 @@ class EnhancedContractParser {
             desiredToken: pattern.assetExchange.requested.tokenId || 'ERG',
             offeredAsset: pattern.assetExchange.offered,
             requestedAsset: pattern.assetExchange.requested
+          };
+        }
+      }
+    }
+    
+    // Apply stealth address patterns
+    for (const pattern of stealthPatterns) {
+      const relevantBoxes = boxes.filter(box => 
+        box.boxType.includes('stealth') || 
+        box.boxType.includes('meta') ||
+        box.boxType.includes('notification') ||
+        box.description.toLowerCase().includes('stealth')
+      );
+      
+      for (const box of relevantBoxes) {
+        if (!box.stealthAddress) {
+          box.stealthAddress = {
+            stealthType: pattern.stealthType,
+            privacyLevel: pattern.privacyLevel,
+            ephemeralKey: pattern.ephemeralKey,
+            viewKey: pattern.viewKey,
+            spendKey: pattern.spendKey,
+            encryptedPayload: pattern.encryptedPayload,
+            detectionHint: pattern.detectionHint,
+            oneTimeAddress: pattern.oneTimeAddress
+          };
+        }
+      }
+      
+      // Apply stealth patterns to transactions
+      const relevantTransactions = transactions.filter(tx => 
+        tx.description.toLowerCase().includes('stealth') ||
+        tx.description.toLowerCase().includes('meta-address') ||
+        tx.description.toLowerCase().includes('notification')
+      );
+      
+      for (const tx of relevantTransactions) {
+        if (!tx.stealthTransaction) {
+          tx.stealthTransaction = {
+            phase: pattern.phase,
+            privacyMechanism: pattern.privacyMechanism,
+            cryptographicProof: pattern.cryptographicProof,
+            forwardSecrecy: pattern.forwardSecrecy
           };
         }
       }
@@ -1168,7 +1445,10 @@ class EnhancedContractParser {
     return script.includes('||') && (script.includes('Pk') || script.includes('pubKey'));
   }
 
-  private inferEnhancedContractType(script: string): 'dex_order' | 'atomic_exchange' | 'multisig' | 'time_locked' | 'escrow' | 'generic' {
+  private inferEnhancedContractType(script: string): 'dex_order' | 'atomic_exchange' | 'multisig' | 'time_locked' | 'escrow' | 'stealth_address' | 'generic' {
+    // Stealth address patterns - privacy-preserving payments
+    if (this.isStealthAddressContract(script)) return 'stealth_address';
+    
     // Multi-scenario escrow patterns
     if (this.isEscrowContract(script)) return 'escrow';
     
@@ -1206,6 +1486,34 @@ class EnhancedContractParser {
     const hasStateRegisters = script.includes('R5') || script.includes('R6') || script.includes('R7');
     
     return orCount >= 2 && (partySignatures > 1 || hasTimeout || hasDispute || hasStateRegisters);
+  }
+
+  private isStealthAddressContract(script: string): boolean {
+    // Check for stealth address cryptographic patterns
+    const hasEphemeralKey = script.includes('ephemeralPubKey') || script.includes('ephemeral');
+    const hasECDH = script.includes('ECDH') || (script.includes('sharedSecret') && script.includes('blake2b256'));
+    const hasViewKey = script.includes('viewKey') || script.includes('ViewKey');
+    const hasSpendKey = script.includes('spendKey') || script.includes('SpendKey');
+    
+    // Check for stealth-specific register patterns
+    const hasStealthRegisters = script.includes('encryptedPayload') || script.includes('notificationData');
+    const hasOneTimeKey = script.includes('oneTime') || script.includes('OneTime');
+    
+    // Check for privacy-specific validation patterns
+    const hasSecretReconstruction = script.includes('providedSharedSecret') && script.includes('expectedSharedSecret');
+    const hasForwardSecrecy = script.includes('forwardSecrecy') || script.includes('forall');
+    
+    // Check for notification system patterns
+    const hasNotificationSystem = script.includes('notification') || script.includes('recipientHint');
+    
+    // Meta-address pattern check
+    const hasMetaAddress = script.includes('metaAddress') || script.includes('MetaAddress');
+    
+    return (hasEphemeralKey && hasECDH && (hasViewKey || hasSpendKey)) || 
+           (hasStealthRegisters && hasOneTimeKey) ||
+           (hasSecretReconstruction && hasForwardSecrecy) ||
+           hasNotificationSystem ||
+           hasMetaAddress;
   }
 
   private extractLogicalConditions(script: string): string[] {
@@ -2220,8 +2528,11 @@ class EnhancedContractParser {
     return 0;
   }
 
-  private extractInputs(content: string): string[] {
-    console.log('=== EXTRACTING INPUTS DEBUG ===');
+  /**
+   * Enhanced transaction input extraction with smart comma splitting and dependency analysis
+   */
+  private extractTransactionInputs(content: string): string[] {
+    console.log('=== ENHANCED INPUT EXTRACTION DEBUG ===');
     console.log('Content:', content);
     
     // Find the start of inputs assignment
@@ -2231,71 +2542,190 @@ class EnhancedContractParser {
     const startIndex = inputsStartMatch.index! + inputsStartMatch[0].length;
     
     // Use balanced parentheses parsing to extract the complete inputs value
-    let inputsStr = '';
+    let inputsStr = this.extractBalancedExpression(content, startIndex);
+    
+    console.log('Extracted inputs string with balanced parsing:', inputsStr);
+    
+    if (inputsStr.trim()) {
+      return this.parseInputsString(inputsStr);
+    }
+    return [];
+  }
+
+  /**
+   * Legacy method for backward compatibility
+   */
+  private extractInputs(content: string): string[] {
+    return this.extractTransactionInputs(content);
+  }
+
+  /**
+   * Extract balanced expression from content starting at given index
+   */
+  private extractBalancedExpression(content: string, startIndex: number): string {
+    let result = '';
     let depth = 0;
     let i = startIndex;
     
     while (i < content.length) {
       const char = content[i];
       
-      if (char === '(' || char === '[') {
+      if (char === '(' || char === '[' || char === '{') {
         depth++;
-        inputsStr += char;
-      } else if (char === ')' || char === ']') {
+        result += char;
+      } else if (char === ')' || char === ']' || char === '}') {
         depth--;
-        inputsStr += char;
-        if (depth === 0 && inputsStr.trim()) {
+        result += char;
+        if (depth === 0 && result.trim()) {
           // Check if we're at the end of a complete expression
           const nextChar = content[i + 1];
           if (!nextChar || nextChar.match(/[\s,\n]/)) {
             break;
           }
         }
-      } else if (depth === 0 && char === ',' && content.substring(i).match(/^\s*,\s*(outputs|fee)/)) {
-        // Stop at comma followed by outputs or fee at depth 0
+      } else if (depth === 0 && char === ',' && content.substring(i).match(/^\s*,\s*(outputs|fee|dataInputs)/)) {
+        // Stop at comma followed by transaction properties at depth 0
         break;
       } else if (depth === 0 && char === '\n') {
         // Stop at newline at depth 0
         break;
       } else {
-        inputsStr += char;
+        result += char;
       }
       i++;
     }
     
-    console.log('Extracted inputs string with balanced parsing:', inputsStr);
+    return result;
+  }
+
+  /**
+   * Parse inputs string with smart comma splitting and pattern recognition
+   */
+  private parseInputsString(inputsStr: string): string[] {
+    inputsStr = inputsStr.trim();
+    console.log('Processing inputsStr:', inputsStr);
     
-    if (inputsStr.trim()) {
-      inputsStr = inputsStr.trim();
-      console.log('Processing inputsStr:', inputsStr);
-      
-      // Handle List(...) format
-      if (inputsStr.startsWith('List(')) {
-        inputsStr = inputsStr.slice(5, -1);
-        console.log('After List() removal:', inputsStr);
-      }
-      
-      // Handle various input patterns
-      if (inputsStr.includes('selectUnspentBoxes')) {
-        console.log('Found selectUnspentBoxes pattern');
-        const partyMatch = inputsStr.match(/(\w+Party)\.selectUnspentBoxes/);
-        console.log('Party match:', partyMatch);
-        return partyMatch ? [`${partyMatch[1]}_unspent_boxes`] : ['unspent_boxes'];
-      }
-      
-      // Handle explicit box references like "depositTransactionSigned.outputs(0)"
-      console.log('Checking for explicit box references');
-      const explicitMatches = inputsStr.matchAll(/(\w+)\.outputs\((\d+)\)/g);
-      const inputs = [];
-      for (const match of explicitMatches) {
-        console.log('Found explicit match:', match);
-        inputs.push(`${match[1]}_output_${match[2]}`);
-      }
-      
-      console.log('Final extracted inputs:', inputs.length > 0 ? inputs : [inputsStr]);
-      return inputs.length > 0 ? inputs : [inputsStr];
+    // Handle List(...) format
+    if (inputsStr.startsWith('List(')) {
+      inputsStr = inputsStr.slice(5, -1).trim();
+      console.log('After List() removal:', inputsStr);
     }
-    return [];
+    
+    // Handle Array(...) format
+    if (inputsStr.startsWith('Array(')) {
+      inputsStr = inputsStr.slice(6, -1).trim();
+      console.log('After Array() removal:', inputsStr);
+    }
+    
+    // Handle selectUnspentBoxes patterns
+    if (inputsStr.includes('selectUnspentBoxes')) {
+      console.log('Found selectUnspentBoxes pattern');
+      return this.parseUnspentBoxReferences(inputsStr);
+    }
+    
+    // Handle explicit box references
+    const explicitRefs = this.parseExplicitBoxReferences(inputsStr);
+    if (explicitRefs.length > 0) {
+      return explicitRefs;
+    }
+    
+    // Smart comma splitting with context awareness
+    return this.smartCommaSplit(inputsStr);
+  }
+
+  /**
+   * Parse unspent box references with party identification
+   */
+  private parseUnspentBoxReferences(inputsStr: string): string[] {
+    const partyMatches = [...inputsStr.matchAll(/(\w+Party)\.selectUnspentBoxes/g)];
+    const results = [];
+    
+    for (const match of partyMatches) {
+      results.push(`${match[1]}_unspent_boxes`);
+      console.log(`Found unspent boxes for party: ${match[1]}`);
+    }
+    
+    return results.length > 0 ? results : ['unspent_boxes'];
+  }
+
+  /**
+   * Parse explicit box references like "transaction.outputs(0)"
+   */
+  private parseExplicitBoxReferences(inputsStr: string): string[] {
+    const patterns = [
+      /(\w+(?:Transaction(?:Signed)?)?)\.outputs\((\d+)\)/g,
+      /(\w+(?:Transaction(?:Signed)?)?)_output_(\d+)/g,
+      /(\w+Box)/g
+    ];
+    
+    const results = [];
+    
+    for (const pattern of patterns) {
+      const matches = [...inputsStr.matchAll(pattern)];
+      for (const match of matches) {
+        if (match[2] !== undefined) {
+          // Pattern with transaction and index
+          results.push(`${match[1]}_output_${match[2]}`);
+          console.log(`Found explicit reference: ${match[1]}_output_${match[2]}`);
+        } else {
+          // Pattern with just box name
+          results.push(match[1]);
+          console.log(`Found box reference: ${match[1]}`);
+        }
+      }
+    }
+    
+    return results;
+  }
+
+  /**
+   * Smart comma splitting that respects nested structures and function calls
+   */
+  private smartCommaSplit(inputsStr: string): string[] {
+    const results = [];
+    let current = '';
+    let depth = 0;
+    let inQuotes = false;
+    let quoteChar = '';
+    
+    for (let i = 0; i < inputsStr.length; i++) {
+      const char = inputsStr[i];
+      
+      // Handle quotes
+      if ((char === '"' || char === "'") && !inQuotes) {
+        inQuotes = true;
+        quoteChar = char;
+        current += char;
+      } else if (char === quoteChar && inQuotes) {
+        inQuotes = false;
+        quoteChar = '';
+        current += char;
+      } else if (inQuotes) {
+        current += char;
+      } else if (char === '(' || char === '[' || char === '{') {
+        depth++;
+        current += char;
+      } else if (char === ')' || char === ']' || char === '}') {
+        depth--;
+        current += char;
+      } else if (char === ',' && depth === 0) {
+        // Split at comma only at depth 0
+        if (current.trim()) {
+          results.push(current.trim());
+        }
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    
+    // Add the last part
+    if (current.trim()) {
+      results.push(current.trim());
+    }
+    
+    console.log('Smart comma split results:', results);
+    return results.length > 0 ? results : [inputsStr];
   }
 
   private extractOutputs(content: string): string[] {
@@ -2359,6 +2789,18 @@ class EnhancedContractParser {
     const valueMatch = content.match(/value\s*=\s*([^,\n]+)/);
     const value = valueMatch ? valueMatch[1] : 'unknown';
     
+    // Stealth address patterns
+    if (name.toLowerCase().includes('metaaddress') || name.toLowerCase().includes('meta_address')) {
+      return `Stealth meta-address: ${value}`;
+    } else if (name.toLowerCase().includes('stealth') && (name.toLowerCase().includes('payment') || name.toLowerCase().includes('claim'))) {
+      return `Stealth payment: ${value}`;
+    } else if (name.toLowerCase().includes('notification')) {
+      return `Payment notification: ${value}`;
+    } else if (name.toLowerCase().includes('stealth')) {
+      return `Privacy box: ${value}`;
+    }
+    // End stealth address patterns
+    
     if (name.toLowerCase().includes('lock')) {
       return `Locked funds: ${value}`;
     } else if (name.toLowerCase().includes('escrow')) {
@@ -2376,6 +2818,20 @@ class EnhancedContractParser {
     const name = txName.replace(/Transaction(?:Signed)?$/, '');
     const type = this.inferTransactionType(txName, content);
     
+    // Stealth address transaction patterns
+    if (name.toLowerCase().includes('metaaddress') || name.toLowerCase().includes('meta_address')) {
+      return `Publish stealth meta-address`;
+    } else if (name.toLowerCase().includes('stealth') && name.toLowerCase().includes('payment')) {
+      return `Create stealth payment`;
+    } else if (name.toLowerCase().includes('stealth') && name.toLowerCase().includes('claim')) {
+      return `Claim stealth payment`;
+    } else if (name.toLowerCase().includes('notification') && name.toLowerCase().includes('cleanup')) {
+      return `Clean up payment notification`;
+    } else if (name.toLowerCase().includes('stealth')) {
+      return `Execute privacy transaction`;
+    }
+    // End stealth address patterns
+    
     switch (type) {
       case 'deposit':
         return `Deposit funds into ${name.toLowerCase()}`;
@@ -2388,6 +2844,456 @@ class EnhancedContractParser {
       default:
         return `Execute ${name.toLowerCase()}`;
     }
+  }
+
+  // ============================================================================
+  // DEPENDENCY ANALYSIS AND TOPOLOGICAL SORTING
+  // ============================================================================
+
+  /**
+   * Sort transactions by dependency using topological sorting
+   * This ensures parent transactions are processed before their dependents
+   */
+  public sortTransactionsByDependency(
+    transactions: EnhancedUTXOTransaction[],
+    boxes: EnhancedUTXOBox[]
+  ): EnhancedUTXOTransaction[] {
+    console.log('[DependencySort] Starting topological sort of transactions');
+    
+    // Build dependency graph
+    const dependencyGraph = this.buildTransactionDependencyGraph(transactions, boxes);
+    
+    // Perform topological sort
+    return this.topologicalSort(transactions, dependencyGraph);
+  }
+
+  /**
+   * Create ordered relationships between boxes based on transaction dependencies
+   */
+  public createOrderedRelationships(
+    transactions: EnhancedUTXOTransaction[],
+    boxes: EnhancedUTXOBox[]
+  ): BoxRelationship[] {
+    console.log('[RelationshipBuilder] Creating ordered relationships');
+    
+    const relationships: BoxRelationship[] = [];
+    const processedPairs = new Set<string>();
+    
+    // Sort transactions to ensure proper order
+    const sortedTransactions = this.sortTransactionsByDependency(transactions, boxes);
+    
+    // Create relationships in dependency order
+    for (let i = 0; i < sortedTransactions.length; i++) {
+      const currentTx = sortedTransactions[i];
+      
+      // Create input-output relationships for this transaction
+      const txRelationships = this.createTransactionRelationships(
+        currentTx, 
+        boxes, 
+        processedPairs
+      );
+      relationships.push(...txRelationships);
+      
+      // Create inter-transaction dependencies
+      for (let j = i + 1; j < sortedTransactions.length; j++) {
+        const dependentTx = sortedTransactions[j];
+        const dependencyRelationships = this.createDependencyRelationships(
+          currentTx,
+          dependentTx,
+          boxes,
+          processedPairs
+        );
+        relationships.push(...dependencyRelationships);
+      }
+    }
+    
+    console.log(`[RelationshipBuilder] Created ${relationships.length} ordered relationships`);
+    return relationships;
+  }
+
+  /**
+   * Build transaction dependency graph
+   */
+  private buildTransactionDependencyGraph(
+    transactions: EnhancedUTXOTransaction[],
+    boxes: EnhancedUTXOBox[]
+  ): Map<string, string[]> {
+    const graph = new Map<string, string[]>();
+    const txOutputMap = new Map<string, string>(); // boxId -> txId mapping
+    
+    // Initialize graph nodes
+    for (const tx of transactions) {
+      graph.set(tx.id, []);
+      
+      // Map outputs to transactions
+      for (const outputRef of tx.outputs) {
+        const outputBox = this.findOutputBoxByRef(outputRef, boxes);
+        if (outputBox) {
+          txOutputMap.set(outputBox.id, tx.id);
+        }
+      }
+    }
+    
+    // Build dependency edges
+    for (const tx of transactions) {
+      const dependencies = [];
+      
+      // Check each input to see if it depends on another transaction's output
+      for (const inputRef of tx.inputs) {
+        const inputBox = this.findBoxByReference(inputRef, boxes, '');
+        if (inputBox) {
+          // Check if this box was created by another transaction
+          const creatorTx = txOutputMap.get(inputBox.id);
+          if (creatorTx && creatorTx !== tx.id) {
+            dependencies.push(creatorTx);
+            console.log(`[DependencyGraph] ${tx.id} depends on ${creatorTx} via box ${inputBox.id}`);
+          }
+          
+          // Check for explicit transaction output references
+          const txOutputMatch = inputRef.match(/^(\w+(?:Transaction(?:Signed)?))_output_\d+$/);
+          if (txOutputMatch) {
+            const referencedTx = txOutputMatch[1];
+            if (referencedTx !== tx.id) {
+              dependencies.push(referencedTx);
+              console.log(`[DependencyGraph] ${tx.id} depends on ${referencedTx} via explicit reference`);
+            }
+          }
+        }
+      }
+      
+      graph.set(tx.id, [...new Set(dependencies)]); // Remove duplicates
+    }
+    
+    // Cache dependency graph for performance
+    this.transactionDependencyCache.clear();
+    for (const [txId, deps] of graph) {
+      this.transactionDependencyCache.set(txId, deps);
+    }
+    
+    return graph;
+  }
+
+  /**
+   * Perform topological sort using Kahn's algorithm
+   */
+  private topologicalSort(
+    transactions: EnhancedUTXOTransaction[],
+    dependencyGraph: Map<string, string[]>
+  ): EnhancedUTXOTransaction[] {
+    const result: EnhancedUTXOTransaction[] = [];
+    const inDegree = new Map<string, number>();
+    const txMap = new Map<string, EnhancedUTXOTransaction>();
+    
+    // Initialize maps
+    for (const tx of transactions) {
+      inDegree.set(tx.id, 0);
+      txMap.set(tx.id, tx);
+    }
+    
+    // Calculate in-degrees
+    for (const [, dependencies] of dependencyGraph) {
+      for (const dep of dependencies) {
+        if (inDegree.has(dep)) {
+          inDegree.set(dep, (inDegree.get(dep) || 0) + 1);
+        }
+      }
+    }
+    
+    // Find nodes with no incoming edges
+    const queue: string[] = [];
+    for (const [txId, degree] of inDegree) {
+      if (degree === 0) {
+        queue.push(txId);
+      }
+    }
+    
+    // Process queue
+    while (queue.length > 0) {
+      const currentTxId = queue.shift()!;
+      const currentTx = txMap.get(currentTxId);
+      
+      if (currentTx) {
+        result.push(currentTx);
+        
+        // Update in-degrees of dependent transactions
+        const dependencies = dependencyGraph.get(currentTxId) || [];
+        for (const depTxId of dependencies) {
+          const newDegree = (inDegree.get(depTxId) || 1) - 1;
+          inDegree.set(depTxId, newDegree);
+          
+          if (newDegree === 0) {
+            queue.push(depTxId);
+          }
+        }
+      }
+    }
+    
+    // Check for cycles
+    if (result.length !== transactions.length) {
+      console.warn('[TopologicalSort] Circular dependencies detected, using original order');
+      return transactions;
+    }
+    
+    console.log(`[TopologicalSort] Sorted ${result.length} transactions`);
+    return result;
+  }
+
+  /**
+   * Create relationships for a single transaction
+   */
+  private createTransactionRelationships(
+    tx: EnhancedUTXOTransaction,
+    boxes: EnhancedUTXOBox[],
+    processedPairs: Set<string>
+  ): BoxRelationship[] {
+    const relationships: BoxRelationship[] = [];
+    
+    // Input -> Output relationships within the transaction
+    for (const inputRef of tx.inputs) {
+      const inputBox = this.findBoxByReference(inputRef, boxes, '');
+      if (!inputBox) continue;
+      
+      for (const outputRef of tx.outputs) {
+        const outputBox = this.findOutputBoxByRef(outputRef, boxes);
+        if (!outputBox) continue;
+        
+        const pairKey = `${inputBox.id}->${outputBox.id}`;
+        if (processedPairs.has(pairKey)) continue;
+        
+        const relationship: BoxRelationship = {
+          id: `rel_${this.relationshipCounter++}`,
+          type: 'input_output',
+          fromBoxId: inputBox.id,
+          toBoxId: outputBox.id,
+          viaTxId: tx.id,
+          strength: this.calculateRelationshipStrength(inputBox, outputBox, tx),
+          metadata: {
+            description: `${tx.type} flow: ${inputBox.boxType} → ${outputBox.boxType}`,
+            direction: 'forward',
+            transactionType: tx.type
+          },
+          displayHints: {
+            color: this.getRelationshipColor(tx.type),
+            style: 'solid',
+            thickness: 2
+          }
+        };
+        
+        relationships.push(relationship);
+        processedPairs.add(pairKey);
+        
+        // Update box states
+        if (inputBox.state === 'unspent') {
+          inputBox.state = 'spent';
+        }
+        if (outputBox.state === 'unknown') {
+          outputBox.state = 'unspent';
+        }
+      }
+    }
+    
+    return relationships;
+  }
+
+  /**
+   * Create dependency relationships between transactions
+   */
+  private createDependencyRelationships(
+    parentTx: EnhancedUTXOTransaction,
+    childTx: EnhancedUTXOTransaction,
+    boxes: EnhancedUTXOBox[],
+    processedPairs: Set<string>
+  ): BoxRelationship[] {
+    const relationships: BoxRelationship[] = [];
+    
+    // Check if childTx uses outputs from parentTx as inputs
+    for (const childInputRef of childTx.inputs) {
+      const childInputBox = this.findBoxByReference(childInputRef, boxes, '');
+      if (!childInputBox) continue;
+      
+      for (const parentOutputRef of parentTx.outputs) {
+        const parentOutputBox = this.findOutputBoxByRef(parentOutputRef, boxes);
+        if (!parentOutputBox) continue;
+        
+        // Check if the child's input comes from parent's output
+        if (childInputBox.id === parentOutputBox.id || 
+            childInputBox.creationTxId === parentTx.id) {
+          
+          const pairKey = `${parentOutputBox.id}->${childTx.id}`;
+          if (processedPairs.has(pairKey)) continue;
+          
+          const relationship: BoxRelationship = {
+            id: `rel_${this.relationshipCounter++}`,
+            type: 'state_transition',
+            fromBoxId: parentOutputBox.id,
+            toBoxId: childTx.id,
+            viaTxId: childTx.id,
+            strength: 'strong',
+            metadata: {
+              description: `Transaction dependency: ${parentTx.id} → ${childTx.id}`,
+              direction: 'forward',
+              dependencyType: 'output_to_input'
+            },
+            displayHints: {
+              color: '#6366f1', // Indigo for dependencies
+              style: 'dashed',
+              thickness: 2
+            }
+          };
+          
+          relationships.push(relationship);
+          processedPairs.add(pairKey);
+        }
+      }
+    }
+    
+    return relationships;
+  }
+
+  /**
+   * Find output box by reference with enhanced matching
+   */
+  private findOutputBoxByRef(outputRef: string, boxes: EnhancedUTXOBox[]): EnhancedUTXOBox | null {
+    // Direct reference
+    const directMatch = boxes.find(box => box.id === outputRef);
+    if (directMatch) return directMatch;
+    
+    // Transaction output pattern matching
+    const outputPattern = outputRef.match(/(\w+)_output_(\d+)/);
+    if (outputPattern) {
+      const txName = outputPattern[1];
+      const index = parseInt(outputPattern[2]);
+      return boxes.find(box => 
+        box.creationTxId === txName && box.creationIndex === index
+      ) || null;
+    }
+    
+    return null;
+  }
+
+  /**
+   * Calculate relationship strength based on box types and transaction context
+   */
+  private calculateRelationshipStrength(
+    fromBox: EnhancedUTXOBox,
+    toBox: EnhancedUTXOBox,
+    tx: EnhancedUTXOTransaction
+  ): 'weak' | 'medium' | 'strong' {
+    let score = 50;
+    
+    // Transaction type bonuses
+    if (tx.type === 'swap' || tx.type === 'deposit') score += 20;
+    if (tx.type === 'setup' || tx.type === 'withdraw') score += 15;
+    
+    // Box type relationship bonuses
+    if (fromBox.boxType === 'wallet' && toBox.boxType === 'contract') score += 15;
+    if (fromBox.boxType === 'contract' && toBox.boxType === 'contract') score += 25;
+    
+    // Value flow consideration
+    if (fromBox.value > 0 && toBox.value > 0) score += 10;
+    
+    // Token flow consideration
+    if (fromBox.tokens.length > 0 || toBox.tokens.length > 0) score += 15;
+    
+    // Owner relationship
+    if (fromBox.owner === toBox.owner) score += 10;
+    
+    if (score >= 75) return 'strong';
+    if (score >= 55) return 'medium';
+    return 'weak';
+  }
+
+  /**
+   * Get relationship color based on transaction type
+   */
+  private getRelationshipColor(txType: EnhancedUTXOTransaction['type']): string {
+    switch (txType) {
+      case 'deposit': return '#10b981'; // Green
+      case 'withdraw': return '#f59e0b'; // Amber
+      case 'swap': return '#8b5cf6'; // Purple
+      case 'setup': return '#3b82f6'; // Blue
+      case 'transfer': return '#6b7280'; // Gray
+      default: return '#374151'; // Dark gray
+    }
+  }
+
+  /**
+   * Generate cache key for parsed contract
+   */
+  private generateCacheKey(code: string): string {
+    // Create hash-like key from code content for caching
+    let hash = 0;
+    for (let i = 0; i < code.length; i++) {
+      const char = code.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return `contract_${Math.abs(hash).toString(36)}_${code.length}`;
+  }
+
+  /**
+   * Manage cache size to prevent memory issues
+   */
+  private manageCacheSize(): void {
+    if (this.parseResultCache.size >= this.maxCacheSize) {
+      // Remove oldest entries (simple FIFO strategy)
+      const entriesToRemove = Math.floor(this.maxCacheSize * 0.3); // Remove 30%
+      const keys = Array.from(this.parseResultCache.keys());
+      
+      for (let i = 0; i < entriesToRemove; i++) {
+        this.parseResultCache.delete(keys[i]);
+      }
+      
+      console.log(`[ContractParser] Cleared ${entriesToRemove} stale cache entries`);
+    }
+    
+    // Also manage contract analysis cache
+    if (this.contractAnalysisCache.size >= this.maxCacheSize) {
+      const entriesToRemove = Math.floor(this.maxCacheSize * 0.3);
+      const keys = Array.from(this.contractAnalysisCache.keys());
+      
+      for (let i = 0; i < entriesToRemove; i++) {
+        this.contractAnalysisCache.delete(keys[i]);
+      }
+    }
+  }
+
+  /**
+   * Get cache statistics for monitoring
+   */
+  public getCacheStats(): {
+    parseResults: { size: number; maxSize: number };
+    contractAnalysis: { size: number; maxSize: number };
+    boxLookup: { size: number };
+    transactionDependency: { size: number };
+  } {
+    return {
+      parseResults: {
+        size: this.parseResultCache.size,
+        maxSize: this.maxCacheSize
+      },
+      contractAnalysis: {
+        size: this.contractAnalysisCache.size,
+        maxSize: this.maxCacheSize
+      },
+      boxLookup: {
+        size: this.boxLookupCache.size
+      },
+      transactionDependency: {
+        size: this.transactionDependencyCache.size
+      }
+    };
+  }
+
+  /**
+   * Clear caches for memory management
+   */
+  public clearCaches(): void {
+    this.boxLookupCache.clear();
+    this.transactionDependencyCache.clear();
+    this.parseResultCache.clear();
+    this.contractAnalysisCache.clear();
+    console.log('[ContractParser] All caches cleared');
   }
 }
 

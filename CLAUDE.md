@@ -143,3 +143,4 @@ Smart contract examples demonstrate:
 - [ErgoScript Language Specification](https://github.com/ScorexFoundation/sigmastate-interpreter/blob/develop/docs/LangSpec.md)
 - [Ergo Appkit Documentation](https://github.com/ergoplatform/ergo-appkit)
 - [Scastie Scala Playground](https://scastie.scala-lang.org/)
+- ultrathink that these utxo boxes have to get properly connected
