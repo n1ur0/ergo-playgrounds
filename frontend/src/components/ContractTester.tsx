@@ -184,65 +184,125 @@ val releaseTransactionSigned = buyerParty.wallet.sign(
 blockchainSim.send(releaseTransactionSigned)`,
 
   tokenSalesService: `// Token Sales Service Contract
-// Automated token sales with dynamic pricing based on supply
-val tokenId = "sales_token_id_here"
+// Comprehensive token sales platform with dynamic pricing and multiple buyer support
+val tokenId = "SALES_TOKEN_001" 
+val sellerPubKey = "seller_public_key_here"
 val initialPrice = 1000000L // 0.001 ERG per token
 val priceIncrement = 100000L // Price increases by 0.0001 ERG per 1000 tokens sold
 val maxTokensPerPurchase = 10000L
+val minPurchaseAmount = 100L
 
 val tokenSalesScript = s"""
 {
+  // Sales contract state tracking
+  val tokensSold = SELF.R4[Long].get
+  val currentPrice = SELF.R5[Long].get
+  val totalErgCollected = SELF.R6[Long].get
+  
   val validPurchase = {
-    val tokensSold = SELF.R4[Long].get
-    val tokensRequested = INPUTS(0).R5[Long].get
-    val currentPrice = $initialPrice + (tokensSold / 1000L) * $priceIncrement
-    val requiredPayment = tokensRequested * currentPrice
+    // Buyer provides payment and specifies token amount
+    val tokensRequested = INPUTS(1).R7[Long].get // Buyer specifies amount in register
+    val paymentProvided = INPUTS(1).value
+    
+    // Calculate current price based on tokens already sold
+    val expectedPrice = $initialPrice + (tokensSold / 1000L) * $priceIncrement
+    val requiredPayment = tokensRequested * expectedPrice
     
     // Validate purchase constraints
-    val validAmount = tokensRequested > 0L && tokensRequested <= $maxTokensPerPurchase
-    val validPayment = INPUTS(0).value >= requiredPayment
-    val correctTokenOutput = OUTPUTS(0).tokens(0)._1 == fromBase64("$tokenId") && 
-                            OUTPUTS(0).tokens(0)._2 == tokensRequested
+    val validAmount = tokensRequested >= $minPurchaseAmount && tokensRequested <= $maxTokensPerPurchase
+    val sufficientPayment = paymentProvided >= requiredPayment
+    val tokensAvailable = SELF.tokens(0)._2 >= tokensRequested
     
-    // Update sales contract state
-    val updatedSalesBox = OUTPUTS(1).R4[Long].get == tokensSold + tokensRequested
+    // Check outputs: buyer gets tokens, sales contract is updated
+    val buyerGetsTokens = OUTPUTS(0).tokens(0)._1 == SELF.tokens(0)._1 && 
+                         OUTPUTS(0).tokens(0)._2 == tokensRequested &&
+                         OUTPUTS(0).propositionBytes != SELF.propositionBytes
     
-    validAmount && validPayment && correctTokenOutput && updatedSalesBox
+    // Sales contract updated with new state
+    val updatedSalesContract = {
+      val newTokensSold = tokensSold + tokensRequested
+      val newPrice = $initialPrice + (newTokensSold / 1000L) * $priceIncrement  
+      val newErgBalance = totalErgCollected + requiredPayment
+      val remainingTokens = SELF.tokens(0)._2 - tokensRequested
+      
+      OUTPUTS(1).R4[Long].get == newTokensSold &&
+      OUTPUTS(1).R5[Long].get == newPrice &&
+      OUTPUTS(1).R6[Long].get == newErgBalance &&
+      OUTPUTS(1).tokens(0)._2 == remainingTokens
+    }
+    
+    validAmount && sufficientPayment && tokensAvailable && buyerGetsTokens && updatedSalesContract
   }
   
-  // Allow owner to withdraw proceeds or update parameters
-  val ownerWithdraw = sigmaProp("owner_public_key_here")
+  val sellerWithdrawal = {
+    // Seller can withdraw accumulated ERG proceeds
+    sigmaProp("$sellerPubKey") && {
+      val withdrawAmount = SELF.R6[Long].get // Total ERG collected
+      OUTPUTS(0).value >= withdrawAmount - MinTxFee &&
+      OUTPUTS(0).propositionBytes == fromBase64("$sellerPubKey") &&
+      // Reset collected ERG counter but preserve token state
+      OUTPUTS(1).R6[Long].get == 0L &&
+      OUTPUTS(1).R4[Long].get == SELF.R4[Long].get && // Keep tokens sold count
+      OUTPUTS(1).R5[Long].get == SELF.R5[Long].get    // Keep current price
+    }
+  }
   
-  validPurchase || ownerWithdraw
+  val priceUpdate = {
+    // Seller can manually adjust pricing parameters
+    sigmaProp("$sellerPubKey") && {
+      val newPrice = INPUTS(0).R8[Long].get // New price in input register
+      newPrice > 0L &&
+      OUTPUTS(0).R5[Long].get == newPrice
+    }
+  }
+  
+  validPurchase || sellerWithdrawal || priceUpdate
 }
 """.stripMargin
 
 val tokenSalesContract = ErgoScriptCompiler.compile(Map(), tokenSalesScript)
 
-// Create blockchain simulation
-val blockchainSim = newBlockChainSimulationScenario("Token Sales Scenario")
-val sellerParty = blockchainSim.newParty("seller")
-val buyerParty = blockchainSim.newParty("buyer")
+// Create blockchain simulation with multiple participants
+val blockchainSim = newBlockChainSimulationScenario("Comprehensive Token Sales")
+val sellerParty = blockchainSim.newParty("TokenSeller")
+val buyer1Party = blockchainSim.newParty("Buyer1_Alice")
+val buyer2Party = blockchainSim.newParty("Buyer2_Bob") 
+val buyer3Party = blockchainSim.newParty("Buyer3_Carol")
 
-// Initial setup
-val initialTokenSupply = 1000000L
-val buyerFunds = 100000000L // 0.1 ERG
+// Initial funding
+val sellerFunds = 100000000L // 0.1 ERG for setup
+val buyer1Funds = 200000000L // 0.2 ERG
+val buyer2Funds = 150000000L // 0.15 ERG  
+val buyer3Funds = 300000000L // 0.3 ERG
+val initialTokenSupply = 1000000L // 1 million tokens
 
-sellerParty.generateUnspentBoxes(toSpend = 50000000L)
-buyerParty.generateUnspentBoxes(toSpend = buyerFunds)
+sellerParty.generateUnspentBoxes(toSpend = sellerFunds)
+buyer1Party.generateUnspentBoxes(toSpend = buyer1Funds)
+buyer2Party.generateUnspentBoxes(toSpend = buyer2Funds)
+buyer3Party.generateUnspentBoxes(toSpend = buyer3Funds)
 
-// Create initial token sales box
-val salesBox = Box(
-  value = 10000000L, // Contract maintenance fee
-  script = tokenSalesContract,
-  tokens = List((tokenId -> initialTokenSupply)),
-  registers = Map(R4 -> 0L) // Tokens sold counter
+// Generate initial token supply for seller
+sellerParty.generateUnspentBoxes(
+  toSpend = MinBoxValue,
+  tokens = List((tokenId -> initialTokenSupply))
 )
 
-// Deploy sales contract
+// STEP 1: Seller deploys token sales contract
+val initialSalesBox = Box(
+  value = 50000000L, // Contract operational funds
+  script = tokenSalesContract,
+  tokens = List((tokenId -> initialTokenSupply)),
+  registers = Map(
+    R4 -> 0L,           // Tokens sold counter
+    R5 -> initialPrice, // Current price per token
+    R6 -> 0L            // Total ERG collected
+  )
+)
+
 val deployTransaction = Transaction(
-  inputs = sellerParty.selectUnspentBoxes(toSpend = 50000000L),
-  outputs = List(salesBox),
+  inputs = sellerParty.selectUnspentBoxes(toSpend = sellerFunds) ++
+           sellerParty.selectUnspentBoxes(tokens = List((tokenId -> initialTokenSupply))),
+  outputs = List(initialSalesBox),
   fee = MinTxFee,
   sendChangeTo = sellerParty.wallet.getAddress
 )
@@ -250,317 +310,902 @@ val deployTransaction = Transaction(
 val deployTransactionSigned = sellerParty.wallet.sign(deployTransaction)
 blockchainSim.send(deployTransactionSigned)
 
-// Purchase tokens
-val tokensToBuy = 5000L
-val currentPrice = initialPrice // First purchase at initial price
-val paymentAmount = tokensToBuy * currentPrice
+// STEP 2: First buyer (Alice) purchases 5000 tokens at initial price
+val buyer1TokensToBuy = 5000L
+val buyer1ExpectedPrice = initialPrice
+val buyer1PaymentRequired = buyer1TokensToBuy * buyer1ExpectedPrice
 
-val purchaseBox = Box(
-  value = paymentAmount,
-  registers = Map(R5 -> tokensToBuy) // Tokens requested
+val buyer1PaymentBox = Box(
+  value = buyer1PaymentRequired + MinTxFee,
+  script = contract(buyer1Party.wallet.getAddress.pubKey),
+  registers = Map(R7 -> buyer1TokensToBuy) // Specify tokens to buy
 )
 
-val buyerTokenBox = Box(
+val buyer1TokenBox = Box(
   value = MinBoxValue,
-  script = contract(buyerParty.wallet.getAddress.pubKey),
-  tokens = List((tokenId -> tokensToBuy))
+  script = contract(buyer1Party.wallet.getAddress.pubKey),
+  tokens = List((tokenId -> buyer1TokensToBuy))
 )
 
-val updatedSalesBox = Box(
-  value = 10000000L + paymentAmount - MinTxFee,
+val updatedSalesBox1 = Box(
+  value = 50000000L + buyer1PaymentRequired - MinTxFee,
   script = tokenSalesContract,
-  tokens = List((tokenId -> (initialTokenSupply - tokensToBuy))),
-  registers = Map(R4 -> tokensToBuy) // Updated tokens sold counter
+  tokens = List((tokenId -> (initialTokenSupply - buyer1TokensToBuy))),
+  registers = Map(
+    R4 -> buyer1TokensToBuy,                                           // Tokens sold
+    R5 -> (initialPrice + (buyer1TokensToBuy / 1000L) * priceIncrement), // Updated price
+    R6 -> buyer1PaymentRequired                                        // ERG collected
+  )
 )
 
-val purchaseTransaction = Transaction(
-  inputs = List(purchaseBox, deployTransactionSigned.outputs(0)),
-  outputs = List(buyerTokenBox, updatedSalesBox),
+val buyer1Transaction = Transaction(
+  inputs = List(deployTransactionSigned.outputs(0)) ++
+           buyer1Party.selectUnspentBoxes(toSpend = buyer1PaymentRequired + MinTxFee),
+  outputs = List(buyer1TokenBox, updatedSalesBox1),
+  fee = MinTxFee,
+  sendChangeTo = buyer1Party.wallet.getAddress
+)
+
+val buyer1TransactionSigned = buyer1Party.wallet.sign(buyer1Transaction)
+blockchainSim.send(buyer1TransactionSigned)
+
+// STEP 3: Second buyer (Bob) purchases 8000 tokens at increased price
+val buyer2TokensToBuy = 8000L
+val buyer2ExpectedPrice = initialPrice + (buyer1TokensToBuy / 1000L) * priceIncrement
+val buyer2PaymentRequired = buyer2TokensToBuy * buyer2ExpectedPrice
+
+val buyer2PaymentBox = Box(
+  value = buyer2PaymentRequired + MinTxFee,
+  script = contract(buyer2Party.wallet.getAddress.pubKey),
+  registers = Map(R7 -> buyer2TokensToBuy)
+)
+
+val buyer2TokenBox = Box(
+  value = MinBoxValue,
+  script = contract(buyer2Party.wallet.getAddress.pubKey),
+  tokens = List((tokenId -> buyer2TokensToBuy))
+)
+
+val totalTokensSoldAfterBuyer2 = buyer1TokensToBuy + buyer2TokensToBuy
+val updatedSalesBox2 = Box(
+  value = 50000000L + buyer1PaymentRequired + buyer2PaymentRequired - (2 * MinTxFee),
+  script = tokenSalesContract,
+  tokens = List((tokenId -> (initialTokenSupply - totalTokensSoldAfterBuyer2))),
+  registers = Map(
+    R4 -> totalTokensSoldAfterBuyer2,
+    R5 -> (initialPrice + (totalTokensSoldAfterBuyer2 / 1000L) * priceIncrement),
+    R6 -> (buyer1PaymentRequired + buyer2PaymentRequired)
+  )
+)
+
+val buyer2Transaction = Transaction(
+  inputs = List(buyer1TransactionSigned.outputs(1)) ++
+           buyer2Party.selectUnspentBoxes(toSpend = buyer2PaymentRequired + MinTxFee),
+  outputs = List(buyer2TokenBox, updatedSalesBox2),
+  fee = MinTxFee,
+  sendChangeTo = buyer2Party.wallet.getAddress
+)
+
+val buyer2TransactionSigned = buyer2Party.wallet.sign(buyer2Transaction)
+blockchainSim.send(buyer2TransactionSigned)
+
+// STEP 4: Third buyer (Carol) purchases 12000 tokens (testing max limit)
+val buyer3TokensToBuy = maxTokensPerPurchase // 10000L (max allowed)
+val buyer3ExpectedPrice = initialPrice + (totalTokensSoldAfterBuyer2 / 1000L) * priceIncrement
+val buyer3PaymentRequired = buyer3TokensToBuy * buyer3ExpectedPrice
+
+val buyer3TokenBox = Box(
+  value = MinBoxValue,
+  script = contract(buyer3Party.wallet.getAddress.pubKey),
+  tokens = List((tokenId -> buyer3TokensToBuy))
+)
+
+val totalTokensSoldAfterBuyer3 = totalTokensSoldAfterBuyer2 + buyer3TokensToBuy
+val updatedSalesBox3 = Box(
+  value = 50000000L + buyer1PaymentRequired + buyer2PaymentRequired + buyer3PaymentRequired - (3 * MinTxFee),
+  script = tokenSalesContract,
+  tokens = List((tokenId -> (initialTokenSupply - totalTokensSoldAfterBuyer3))),
+  registers = Map(
+    R4 -> totalTokensSoldAfterBuyer3,
+    R5 -> (initialPrice + (totalTokensSoldAfterBuyer3 / 1000L) * priceIncrement),
+    R6 -> (buyer1PaymentRequired + buyer2PaymentRequired + buyer3PaymentRequired)
+  )
+)
+
+val buyer3Transaction = Transaction(
+  inputs = List(buyer2TransactionSigned.outputs(1)) ++
+           buyer3Party.selectUnspentBoxes(toSpend = buyer3PaymentRequired + MinTxFee),
+  outputs = List(buyer3TokenBox, updatedSalesBox3),
+  fee = MinTxFee,
+  sendChangeTo = buyer3Party.wallet.getAddress
+)
+
+val buyer3TransactionSigned = buyer3Party.wallet.sign(buyer3Transaction)
+blockchainSim.send(buyer3TransactionSigned)
+
+// STEP 5: Seller withdraws accumulated ERG proceeds
+val totalErgCollected = buyer1PaymentRequired + buyer2PaymentRequired + buyer3PaymentRequired
+
+val sellerWithdrawalBox = Box(
+  value = totalErgCollected - MinTxFee,
+  script = contract(sellerParty.wallet.getAddress.pubKey)
+)
+
+val finalSalesBox = Box(
+  value = 50000000L, // Reset to original operational balance
+  script = tokenSalesContract,
+  tokens = List((tokenId -> (initialTokenSupply - totalTokensSoldAfterBuyer3))),
+  registers = Map(
+    R4 -> totalTokensSoldAfterBuyer3, // Keep tokens sold count
+    R5 -> (initialPrice + (totalTokensSoldAfterBuyer3 / 1000L) * priceIncrement), // Keep current price
+    R6 -> 0L // Reset ERG collected counter
+  )
+)
+
+val withdrawalTransaction = Transaction(
+  inputs = List(buyer3TransactionSigned.outputs(1)),
+  outputs = List(sellerWithdrawalBox, finalSalesBox),
   fee = MinTxFee
 )
 
-val purchaseTransactionSigned = buyerParty.wallet.sign(purchaseTransaction)
-blockchainSim.send(purchaseTransactionSigned)`,
+val withdrawalTransactionSigned = sellerParty.wallet.sign(withdrawalTransaction)
+blockchainSim.send(withdrawalTransactionSigned)
 
-  headsOrTails: `// Heads or Tails Gaming Contract
-// A provably fair coin flip game between two players
-val player1PubKey = "player1_public_key_here"
-val player2PubKey = "player2_public_key_here"
-val betAmount = 50000000L // 0.05 ERG
-val commitmentDeadline = 50L // blocks
-val revealDeadline = 100L // blocks
+// SUMMARY: Complete token sales flow demonstrated
+// - Seller deploys sales contract with 1M tokens
+// - Alice buys 5K tokens at base price (0.001 ERG/token)
+// - Bob buys 8K tokens at increased price
+// - Carol buys 10K tokens at further increased price  
+// - Seller withdraws all accumulated ERG proceeds
+// - Sales contract continues operating with remaining tokens`,
 
-val gameScript = s"""
+  headsOrTails: `// COMPREHENSIVE HEADS OR TAILS GAMING CONTRACT
+// A complete provably fair coin flip game with multi-phase UTXO flow
+// Demonstrates commit-reveal schemes, timeout mechanisms, and fair gaming principles
+
+// ========================================
+// GAME CONFIGURATION
+// ========================================
+val betAmount = 50000000L // 0.05 ERG per player
+val commitmentDeadline = 50L // blocks for commitment phase
+val callDeadline = 100L // blocks for player 2 to call
+val revealDeadline = 150L // blocks for player 1 to reveal
+val timeoutGracePeriod = 200L // blocks for final timeout claims
+
+// Player public keys (in real implementation these would be actual keys)
+val player1PubKey = "03a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3"
+val player2PubKey = "03f4e5d6c7b8a9f0e1d2c3b4a5f6e7d8c9f0a1b2e3d4c5f6a7b8c9d0e1f2a3b4c5d6"
+
+// ========================================
+// MULTI-PHASE GAME CONTRACT
+// ========================================
+val headsOrTailsScript = s"""
 {
-  // Game states: 0=setup, 1=committed, 2=revealed, 3=finished
+  // =====================================
+  // GAME STATE TRACKING (Register R4)
+  // =====================================
+  // States: 0=setup, 1=player1_committed, 2=player2_called, 3=revealed, 4=finished
   val gameState = SELF.R4[Int].get
-  val player1Commitment = SELF.R5[Coll[Byte]].getOrElse(Coll[Byte]())
-  val player2Commitment = SELF.R6[Coll[Byte]].getOrElse(Coll[Byte]())
+  val creationHeight = SELF.creationInfo._1
   
-  val setupComplete = {
-    // Both players commit their hashed choices
-    gameState == 0 && 
-    player1Commitment.size > 0 && 
-    player2Commitment.size > 0 &&
-    HEIGHT <= SELF.creationInfo._1 + $commitmentDeadline
+  // =====================================
+  // GAME DATA STORAGE
+  // =====================================
+  val player1Commitment = SELF.R5[Coll[Byte]].getOrElse(Coll[Byte]()) // Hash of (choice + nonce)
+  val player2Call = SELF.R6[Int].getOrElse(-1) // 0=heads, 1=tails, -1=not set
+  val gameId = SELF.R7[Coll[Byte]].getOrElse(Coll[Byte]()) // Unique game identifier
+  val betAmountStored = SELF.R8[Long].getOrElse(0L) // Stored bet amount
+  
+  // =====================================
+  // PHASE 1: SETUP AND INITIAL DEPOSIT
+  // =====================================
+  val setupPhase = {
+    gameState == 0 && {
+      // Both players must deposit their bets
+      val totalValue = SELF.value
+      val correctBetAmount = totalValue == ($betAmount * 2)
+      
+      // Game can proceed to commitment phase
+      correctBetAmount && HEIGHT <= creationHeight + $commitmentDeadline
+    }
   }
   
+  // =====================================
+  // PHASE 2: PLAYER 1 COMMITMENT
+  // =====================================  
+  val commitmentPhase = {
+    (gameState == 0 || gameState == 1) && {
+      // Player 1 commits hash of (choice + nonce)
+      val newCommitment = INPUTS(0).R5[Coll[Byte]].getOrElse(Coll[Byte]())
+      val validCommitment = newCommitment.size == 32 // Blake2b256 hash size
+      
+      // Update game state to committed
+      validCommitment &&
+      HEIGHT <= creationHeight + $commitmentDeadline &&
+      OUTPUTS(0).R4[Int].get == 1 && // Update state to committed
+      OUTPUTS(0).R5[Coll[Byte]].get == newCommitment && // Store commitment
+      OUTPUTS(0).value == SELF.value // Preserve bet funds
+    }
+  }
+  
+  // =====================================
+  // PHASE 3: PLAYER 2 CALLS HEADS/TAILS
+  // =====================================
+  val callingPhase = {
+    gameState == 1 && {
+      // Player 2 makes their call (0=heads, 1=tails)
+      val player2Choice = INPUTS(0).R6[Int].getOrElse(-1)
+      val validCall = player2Choice == 0 || player2Choice == 1
+      
+      // Update game state with player 2's call
+      validCall &&
+      HEIGHT <= creationHeight + $callDeadline &&
+      OUTPUTS(0).R4[Int].get == 2 && // Update state to called
+      OUTPUTS(0).R6[Int].get == player2Choice && // Store player 2's call
+      OUTPUTS(0).R5[Coll[Byte]].get == player1Commitment && // Preserve commitment
+      OUTPUTS(0).value == SELF.value // Preserve bet funds
+    }
+  }
+  
+  // =====================================
+  // PHASE 4: PLAYER 1 REVEAL AND RESOLUTION
+  // =====================================
   val revealPhase = {
-    // Players reveal their choices and determine winner
-    gameState == 1 &&
-    HEIGHT <= SELF.creationInfo._1 + $revealDeadline &&
-    {
-      val player1Choice = INPUTS(0).R7[Int].get // 0 for heads, 1 for tails
-      val player2Choice = INPUTS(0).R8[Int].get
-      val player1Nonce = INPUTS(0).R9[Coll[Byte]].get
-      val player2Nonce = INPUTS(0).R10[Coll[Byte]].get
+    gameState == 2 && {
+      // Player 1 reveals their choice and nonce
+      val player1Choice = INPUTS(0).R7[Int].getOrElse(-1) // 0=heads, 1=tails
+      val player1Nonce = INPUTS(0).R8[Coll[Byte]].getOrElse(Coll[Byte]())
+      val player2Choice = player2Call
       
-      // Verify commitments
-      val validCommitment1 = blake2b256(player1Choice.toByteArray ++ player1Nonce) == player1Commitment
-      val validCommitment2 = blake2b256(player2Choice.toByteArray ++ player2Nonce) == player2Commitment
+      // Validate reveal data
+      val validChoice = player1Choice == 0 || player1Choice == 1
+      val validNonce = player1Nonce.size > 0
       
-      // Determine winner (XOR of choices: same = player1 wins, different = player2 wins)
+      // Verify commitment integrity (provably fair mechanism)
+      val choiceBytes = if (player1Choice == 0) Coll[Byte](0x00) else Coll[Byte](0x01)
+      val computedHash = blake2b256(choiceBytes ++ player1Nonce)
+      val validCommitment = computedHash == player1Commitment
+      
+      // Determine winner using game rules:
+      // - If choices match (both heads or both tails): Player 1 wins
+      // - If choices differ: Player 2 wins
       val player1Wins = player1Choice == player2Choice
+      val player2Wins = !player1Wins
       
-      validCommitment1 && validCommitment2 && {
+      // Validate reveal and determine payout
+      validChoice && validNonce && validCommitment && 
+      HEIGHT <= creationHeight + $revealDeadline && {
         if (player1Wins) {
-          OUTPUTS(0).value == $betAmount * 2 - MinTxFee &&
-          OUTPUTS(0).propositionBytes == fromBase64("$player1PubKey")
+          // Player 1 takes all funds
+          OUTPUTS(0).value >= ($betAmount * 2) - MinTxFee &&
+          OUTPUTS(0).propositionBytes == sigmaProp("$player1PubKey").propBytes
         } else {
-          OUTPUTS(0).value == $betAmount * 2 - MinTxFee &&
-          OUTPUTS(0).propositionBytes == fromBase64("$player2PubKey")
+          // Player 2 takes all funds  
+          OUTPUTS(0).value >= ($betAmount * 2) - MinTxFee &&
+          OUTPUTS(0).propositionBytes == sigmaProp("$player2PubKey").propBytes
         }
       }
     }
   }
   
-  val timeoutRefund = {
-    // Refund if deadlines are missed
-    (gameState == 0 && HEIGHT > SELF.creationInfo._1 + $commitmentDeadline) ||
-    (gameState == 1 && HEIGHT > SELF.creationInfo._1 + $revealDeadline)
+  // =====================================
+  // TIMEOUT AND REFUND MECHANISMS
+  // =====================================
+  val timeoutRefunds = {
+    val currentHeight = HEIGHT
+    
+    // Commitment timeout - refund both players equally
+    val commitmentTimeout = {
+      gameState == 0 && 
+      currentHeight > creationHeight + $commitmentDeadline &&
+      OUTPUTS.size == 2 &&
+      OUTPUTS(0).value >= $betAmount - MinTxFee &&
+      OUTPUTS(1).value >= $betAmount - MinTxFee &&
+      OUTPUTS(0).propositionBytes == sigmaProp("$player1PubKey").propBytes &&
+      OUTPUTS(1).propositionBytes == sigmaProp("$player2PubKey").propBytes
+    }
+    
+    // Call timeout - Player 1 can claim all (Player 2 forfeits)
+    val callTimeout = {
+      gameState == 1 && 
+      currentHeight > creationHeight + $callDeadline &&
+      OUTPUTS(0).value >= ($betAmount * 2) - MinTxFee &&
+      OUTPUTS(0).propositionBytes == sigmaProp("$player1PubKey").propBytes
+    }
+    
+    // Reveal timeout - Player 2 can claim all (Player 1 forfeits)
+    val revealTimeout = {
+      gameState == 2 && 
+      currentHeight > creationHeight + $revealDeadline &&
+      OUTPUTS(0).value >= ($betAmount * 2) - MinTxFee &&
+      OUTPUTS(0).propositionBytes == sigmaProp("$player2PubKey").propBytes
+    }
+    
+    // Emergency timeout - Anyone can claim after very long delay
+    val emergencyTimeout = {
+      currentHeight > creationHeight + $timeoutGracePeriod
+    }
+    
+    commitmentTimeout || callTimeout || revealTimeout || emergencyTimeout
   }
   
-  setupComplete || revealPhase || timeoutRefund
+  // =====================================
+  // CONTRACT VALIDATION LOGIC
+  // =====================================
+  setupPhase || commitmentPhase || callingPhase || revealPhase || timeoutRefunds
 }
 """.stripMargin
 
-val gameContract = ErgoScriptCompiler.compile(Map(), gameScript)
+// ========================================
+// BLOCKCHAIN SIMULATION SETUP
+// ========================================
+val blockchainSim = newBlockChainSimulationScenario("Provably Fair Heads or Tails Game")
+val player1Party = blockchainSim.newParty("Alice_Player1")
+val player2Party = blockchainSim.newParty("Bob_Player2")
 
-// Create blockchain simulation
-val blockchainSim = newBlockChainSimulationScenario("Heads or Tails Game")
-val player1Party = blockchainSim.newParty("player1")
-val player2Party = blockchainSim.newParty("player2")
-
-// Initial funds
-val player1Funds = 100000000L // 0.1 ERG
-val player2Funds = 100000000L // 0.1 ERG
+// Initialize player funds
+val player1Funds = 200000000L // 0.2 ERG (enough for multiple games)
+val player2Funds = 200000000L // 0.2 ERG
 
 player1Party.generateUnspentBoxes(toSpend = player1Funds)
 player2Party.generateUnspentBoxes(toSpend = player2Funds)
 
-// Create game setup
-val player1Choice = 0 // heads
-val player2Choice = 1 // tails
-val player1Nonce = "random_nonce_1".getBytes()
-val player2Nonce = "random_nonce_2".getBytes()
+// Compile the game contract
+val gameContract = ErgoScriptCompiler.compile(Map(), headsOrTailsScript)
 
-// Create commitments (hash of choice + nonce)
-val player1Commitment = Blake2b256(player1Choice.toByteArray ++ player1Nonce)
-val player2Commitment = Blake2b256(player2Choice.toByteArray ++ player2Nonce)
+// ========================================
+// GAME EXECUTION FLOW
+// ========================================
 
-// Create game box with both players' bets
-val gameBox = Box(
-  value = betAmount * 2,
+// PHASE 1: GAME SETUP - Both players deposit bets
+// ===============================================
+val gameId = Blake2b256("heads_or_tails_game_001".getBytes())
+
+val setupGameBox = Box(
+  value = betAmount * 2, // Combined bets from both players
   script = gameContract,
   registers = Map(
-    R4 -> 1, // Game state: committed
-    R5 -> player1Commitment,
-    R6 -> player2Commitment
+    R4 -> 0,        // Initial game state: setup
+    R5 -> Coll[Byte](), // Player 1 commitment (empty initially)
+    R6 -> -1,       // Player 2 call (not set)
+    R7 -> gameId,   // Unique game identifier
+    R8 -> betAmount // Bet amount per player
   )
 )
 
-// Both players fund the game
-val fundingTransaction = Transaction(
+val setupTransaction = Transaction(
   inputs = player1Party.selectUnspentBoxes(toSpend = betAmount + MinTxFee) ++
            player2Party.selectUnspentBoxes(toSpend = betAmount + MinTxFee),
-  outputs = List(gameBox),
+  outputs = List(setupGameBox),
+  fee = MinTxFee,
+  sendChangeTo = player1Party.wallet.getAddress
+)
+
+val setupTransactionSigned = player1Party.wallet.sign(
+  player2Party.wallet.sign(setupTransaction)
+)
+blockchainSim.send(setupTransactionSigned)
+println("✓ PHASE 1 COMPLETE: Game setup with both player deposits")
+
+// PHASE 2: PLAYER 1 COMMITMENT - Hash commitment of choice
+// =======================================================
+val player1Choice = 0 // 0 = heads, 1 = tails
+val player1Nonce = Blake2b256("player1_secret_nonce_12345".getBytes()) // Random nonce
+val choiceBytes = if (player1Choice == 0) Coll[Byte](0x00) else Coll[Byte](0x01)
+val player1Commitment = Blake2b256(choiceBytes ++ player1Nonce)
+
+val committedGameBox = Box(
+  value = betAmount * 2,
+  script = gameContract,
+  registers = Map(
+    R4 -> 1, // Game state: player1 committed
+    R5 -> player1Commitment, // Player 1's hashed choice
+    R6 -> -1, // Player 2 call (not set yet)
+    R7 -> gameId,
+    R8 -> betAmount
+  )
+)
+
+val commitmentTransaction = Transaction(
+  inputs = List(setupTransactionSigned.outputs(0)),
+  outputs = List(committedGameBox),
   fee = MinTxFee
 )
 
-val fundingTransactionSigned = player1Party.wallet.sign(
-  player2Party.wallet.sign(fundingTransaction)
+// Add commitment data to transaction context
+val commitmentTransactionWithData = commitmentTransaction.copy(
+  inputs = commitmentTransaction.inputs.map(_.copy(
+    extension = Map(R5 -> player1Commitment)
+  ))
 )
-blockchainSim.send(fundingTransactionSigned)
 
-// Reveal phase - player1 wins (both chose same)
+val commitmentTransactionSigned = player1Party.wallet.sign(commitmentTransactionWithData)
+blockchainSim.send(commitmentTransactionSigned)
+println("✓ PHASE 2 COMPLETE: Player 1 committed hash of choice")
+
+// PHASE 3: PLAYER 2 CALL - Player 2 calls heads or tails
+// ======================================================
+val player2Choice = 1 // 0 = heads, 1 = tails (calling tails)
+
+val calledGameBox = Box(
+  value = betAmount * 2,
+  script = gameContract,
+  registers = Map(
+    R4 -> 2, // Game state: player2 called
+    R5 -> player1Commitment, // Preserve player 1's commitment
+    R6 -> player2Choice, // Player 2's call
+    R7 -> gameId,
+    R8 -> betAmount
+  )
+)
+
+val callTransaction = Transaction(
+  inputs = List(commitmentTransactionSigned.outputs(0)),
+  outputs = List(calledGameBox),
+  fee = MinTxFee
+)
+
+// Add player 2's call to transaction context
+val callTransactionWithData = callTransaction.copy(
+  inputs = callTransaction.inputs.map(_.copy(
+    extension = Map(R6 -> player2Choice)
+  ))
+)
+
+val callTransactionSigned = player2Party.wallet.sign(callTransactionWithData)
+blockchainSim.send(callTransactionSigned)
+println("✓ PHASE 3 COMPLETE: Player 2 called tails")
+
+// PHASE 4: REVEAL AND RESOLUTION - Player 1 reveals, game resolves
+// ================================================================
+// Player 1 reveals their choice and nonce to prove fairness
+// Winner determination: same choices = Player 1 wins, different = Player 2 wins
+
+val player1Wins = player1Choice == player2Choice // 0 != 1, so Player 2 wins
+val winnerPubKey = if (player1Wins) player1PubKey else player2PubKey
+val winnerParty = if (player1Wins) player1Party else player2Party
+
 val winnerBox = Box(
-  value = betAmount * 2 - MinTxFee,
-  script = contract(player1Party.wallet.getAddress.pubKey)
+  value = (betAmount * 2) - MinTxFee,
+  script = contract(winnerParty.wallet.getAddress.pubKey)
 )
 
 val revealTransaction = Transaction(
-  inputs = List(fundingTransactionSigned.outputs(0)),
+  inputs = List(callTransactionSigned.outputs(0)),
   outputs = List(winnerBox),
   fee = MinTxFee
 )
 
-// Add reveal data to transaction
+// Add reveal data to prove commitment validity
 val revealTransactionWithData = revealTransaction.copy(
   inputs = revealTransaction.inputs.map(_.copy(
     extension = Map(
-      R7 -> player1Choice,
-      R8 -> player2Choice,
-      R9 -> player1Nonce,
-      R10 -> player2Nonce
+      R7 -> player1Choice, // Player 1's actual choice
+      R8 -> player1Nonce   // Player 1's nonce for verification
     )
   ))
 )
 
-val revealTransactionSigned = player1Party.wallet.sign(
-  player2Party.wallet.sign(revealTransactionWithData)
+val revealTransactionSigned = winnerParty.wallet.sign(revealTransactionWithData)
+blockchainSim.send(revealTransactionSigned)
+println("✓ PHASE 4 COMPLETE: Game resolved - Player 2 (Bob) wins!")
+
+// ========================================
+// ALTERNATIVE SCENARIO: TIMEOUT EXAMPLE
+// ========================================
+
+// Start a second game to demonstrate timeout mechanism
+val setupGameBox2 = Box(
+  value = betAmount * 2,
+  script = gameContract,
+  registers = Map(
+    R4 -> 0, // Setup state
+    R5 -> Coll[Byte](),
+    R6 -> -1,
+    R7 -> Blake2b256("game_002".getBytes()),
+    R8 -> betAmount
+  )
 )
-blockchainSim.send(revealTransactionSigned)`,
 
-  singleChainSwap: `// Single Chain Atomic Swap Contract
-// Enables trustless exchange of assets on the same blockchain using hash locks
-val partyAPubKey = "partyA_public_key_here"
-val partyBPubKey = "partyB_public_key_here"
-val secretHash = Blake2b256("secret_phrase_here".getBytes())
-val timeoutBlocks = 100L
-val swapAmount = 50000000L // 0.05 ERG
-val tokenId = "swap_token_id_here"
-val tokenAmount = 1000L
+val setupTransaction2 = Transaction(
+  inputs = player1Party.selectUnspentBoxes(toSpend = betAmount + MinTxFee) ++
+           player2Party.selectUnspentBoxes(toSpend = betAmount + MinTxFee),
+  outputs = List(setupGameBox2),
+  fee = MinTxFee
+)
 
-val swapScript = s"""
+val setupTransaction2Signed = player1Party.wallet.sign(
+  player2Party.wallet.sign(setupTransaction2)
+)
+blockchainSim.send(setupTransaction2Signed)
+
+// Simulate timeout scenario - advance blocks beyond commitment deadline
+blockchainSim.advanceTime(commitmentDeadline + 10)
+
+// Create timeout refund transaction - both players get their bets back
+val refundBox1 = Box(
+  value = betAmount - MinTxFee,
+  script = contract(player1Party.wallet.getAddress.pubKey)
+)
+
+val refundBox2 = Box(
+  value = betAmount - MinTxFee,  
+  script = contract(player2Party.wallet.getAddress.pubKey)
+)
+
+val timeoutRefundTransaction = Transaction(
+  inputs = List(setupTransaction2Signed.outputs(0)),
+  outputs = List(refundBox1, refundBox2),
+  fee = MinTxFee
+)
+
+val timeoutRefundSigned = player1Party.wallet.sign(
+  player2Party.wallet.sign(timeoutRefundTransaction)
+)
+blockchainSim.send(timeoutRefundSigned)
+println("✓ TIMEOUT SCENARIO: Both players refunded due to commitment timeout")
+
+// ========================================
+// GAME SUMMARY AND VERIFICATION
+// ========================================
+println("\\n=== HEADS OR TAILS GAME COMPLETE ===")
+val player1ChoiceStr = if (player1Choice == 0) "HEADS" else "TAILS"
+val player2ChoiceStr = if (player2Choice == 0) "HEADS" else "TAILS"
+val winnerStr = if (player1Wins) "Player 1 (Alice)" else "Player 2 (Bob)"
+val payoutAmount = (betAmount * 2) - MinTxFee
+
+println(s"Game 1 Result: Player 1 chose $player1ChoiceStr")
+println(s"               Player 2 called $player2ChoiceStr") 
+println(s"               Winner: $winnerStr")
+println(s"               Payout: $payoutAmount nanoERGs")
+println("Game 2 Result: Timeout refund scenario demonstrated")
+println("\\nKey Features Demonstrated:")
+println("- Multi-phase UTXO flow (Setup → Commit → Call → Reveal)")
+println("- Provably fair commit-reveal scheme with hash verification")
+println("- Timeout mechanisms protecting both players")
+println("- Complete transaction lifecycle with proper state transitions")
+println("- Educational value showing blockchain gaming principles")`,
+
+  singleChainSwap: `// COMPREHENSIVE SINGLE CHAIN ATOMIC SWAP CONTRACT
+// Demonstrates trustless cross-asset exchange using hash locks and timeouts
+// Educational implementation showing complete UTXO flow and atomic execution
+
+// ========================================
+// ATOMIC SWAP CONFIGURATION
+// ========================================
+val swapAmount = 100000000L // 0.1 ERG (Party A offers)
+val tokenId = "ATOM_SWAP_TOKEN_001" // Token ID for demonstration
+val tokenAmount = 5000L // 5000 tokens (Party B offers)
+val secretPhrase = "atomic_swap_secret_12345_demo"
+val secretHash = Blake2b256(secretPhrase.getBytes())
+val shortTimeout = 100L // blocks for Party B to claim
+val longTimeout = 200L // blocks for Party A to reclaim
+
+// Party public keys (in real implementation these would be actual keys)
+val partyAPubKey = "03a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3"
+val partyBPubKey = "03f4e5d6c7b8a9f0e1d2c3b4a5f6e7d8c9f0a1b2e3d4c5f6a7b8c9d0e1f2a3b4c5d6"
+
+// ========================================
+// HASH-LOCKED SWAP CONTRACT
+// ========================================
+val atomicSwapScript = s"""
 {
-  // Party A locks ERG, Party B locks tokens
-  // Either party can claim with the secret, or reclaim after timeout
+  // =====================================
+  // CONTRACT STATE AND VALIDATION
+  // =====================================
+  val creationHeight = SELF.creationInfo._1
+  val hasTokens = SELF.tokens.size > 0
   
+  // Extract swap parameters from registers
+  val swapSecretHash = SELF.R4[Coll[Byte]].get // Hash of secret
+  val swapTimeout = SELF.R5[Long].get // Timeout height
+  val counterpartyPubKey = SELF.R6[Coll[Byte]].get // Counterparty public key
+  val originalOwnerPubKey = SELF.R7[Coll[Byte]].get // Original depositor
+  val swapType = SELF.R8[Coll[Byte]].get // "ERG_LOCK" or "TOKEN_LOCK"
+  
+  // =====================================
+  // SECRET REVEAL MECHANISM
+  // =====================================
   val secretReveal = {
-    val providedSecret = INPUTS(0).R4[Coll[Byte]].get
-    blake2b256(providedSecret) == fromBase64("$secretHash")
+    // Check if input contains the secret that hashes to stored hash
+    val providedSecret = INPUTS(0).R4[Coll[Byte]].getOrElse(Coll[Byte]())
+    val validSecret = providedSecret.size > 0 && blake2b256(providedSecret) == swapSecretHash
+    
+    validSecret
   }
   
-  val validClaim = {
+  // =====================================
+  // COUNTERPARTY CLAIM PATH
+  // =====================================
+  val counterpartyClaim = {
     secretReveal && {
-      // Check if this is Party B claiming ERG or Party A claiming tokens
+      // Counterparty reveals secret and claims the locked asset
       val claimerPubKey = OUTPUTS(0).propositionBytes
-      (claimerPubKey == fromBase64("$partyBPubKey")) || 
-      (claimerPubKey == fromBase64("$partyAPubKey"))
+      val validCounterparty = claimerPubKey == counterpartyPubKey
+      
+      // Ensure proper asset transfer
+      val properTransfer = {
+        if (hasTokens) {
+          // This is a token lock, counterparty gets tokens
+          OUTPUTS(0).tokens.size > 0 &&
+          OUTPUTS(0).tokens(0)._1 == SELF.tokens(0)._1 && // Same token ID
+          OUTPUTS(0).tokens(0)._2 == SELF.tokens(0)._2    // Same amount
+        } else {
+          // This is an ERG lock, counterparty gets ERG
+          OUTPUTS(0).value >= SELF.value - MinTxFee
+        }
+      }
+      
+      validCounterparty && properTransfer && HEIGHT <= creationHeight + swapTimeout
     }
   }
   
+  // =====================================
+  // TIMEOUT REFUND MECHANISM
+  // =====================================
   val timeoutRefund = {
-    val isTimeout = HEIGHT > SELF.creationInfo._1 + $timeoutBlocks
-    val originalOwner = {
-      // Refund to original depositor
-      if (SELF.tokens.size > 0) {
-        // This box has tokens, so refund to Party B
-        OUTPUTS(0).propositionBytes == fromBase64("$partyBPubKey")
+    // Original owner can reclaim after timeout
+    val isTimeout = HEIGHT > creationHeight + swapTimeout
+    val originalOwnerClaim = OUTPUTS(0).propositionBytes == originalOwnerPubKey
+    
+    val properRefund = {
+      if (hasTokens) {
+        // Refund tokens to original owner
+        OUTPUTS(0).tokens.size > 0 &&
+        OUTPUTS(0).tokens(0)._1 == SELF.tokens(0)._1 &&
+        OUTPUTS(0).tokens(0)._2 == SELF.tokens(0)._2
       } else {
-        // This box has ERG, so refund to Party A
-        OUTPUTS(0).propositionBytes == fromBase64("$partyAPubKey")
+        // Refund ERG to original owner
+        OUTPUTS(0).value >= SELF.value - MinTxFee
       }
     }
-    isTimeout && originalOwner
+    
+    isTimeout && originalOwnerClaim && properRefund
   }
   
-  validClaim || timeoutRefund
+  // =====================================
+  // CONTRACT VALIDATION LOGIC
+  // =====================================
+  counterpartyClaim || timeoutRefund
 }
 """.stripMargin
 
-val swapContract = ErgoScriptCompiler.compile(Map(), swapScript)
+// Compile the atomic swap contract
+val atomicSwapContract = ErgoScriptCompiler.compile(Map(), atomicSwapScript)
 
-// Create blockchain simulation
-val blockchainSim = newBlockChainSimulationScenario("Single Chain Swap")
-val partyA = blockchainSim.newParty("partyA")
-val partyB = blockchainSim.newParty("partyB")
+// ========================================
+// BLOCKCHAIN SIMULATION SETUP
+// ========================================
+val blockchainSim = newBlockChainSimulationScenario("Comprehensive Single Chain Atomic Swap")
+val partyA = blockchainSim.newParty("Alice_ERG_Trader") // Offers ERG, wants tokens
+val partyB = blockchainSim.newParty("Bob_Token_Trader") // Offers tokens, wants ERG
 
-// Initial funds and tokens
-val partyAFunds = 100000000L // 0.1 ERG
-val partyBFunds = 50000000L // 0.05 ERG for fees
+// Initialize party funds
+val partyAFunds = 300000000L // 0.3 ERG (for swap + fees + change)
+val partyBFunds = 100000000L // 0.1 ERG (for fees)
 
 partyA.generateUnspentBoxes(toSpend = partyAFunds)
 partyB.generateUnspentBoxes(toSpend = partyBFunds)
-// Party B also has tokens to swap
-partyB.generateUnspentBoxes(toSpend = MinBoxValue, tokens = List((tokenId -> tokenAmount)))
 
-// Party A creates ERG lock box
-val ergLockBox = Box(
-  value = swapAmount,
-  script = swapContract
+// Party B generates tokens to offer in swap
+partyB.generateUnspentBoxes(
+  toSpend = MinBoxValue,
+  tokens = List((tokenId -> tokenAmount))
 )
 
-val ergLockTransaction = Transaction(
+val alicePubKeyBytes = partyA.wallet.getAddress.pubKey.getEncoded()
+val bobPubKeyBytes = partyB.wallet.getAddress.pubKey.getEncoded()
+
+// ========================================
+// PHASE 1: PARTY A DEPOSITS ERG (INITIATOR)
+// ========================================
+println("=== PHASE 1: ALICE DEPOSITS ERG ===\n")
+
+// Alice creates hash-locked ERG deposit box
+val ergLockBox = Box(
+  value = swapAmount,
+  script = atomicSwapContract,
+  registers = Map(
+    R4 -> secretHash,              // Hash of the secret
+    R5 -> longTimeout,             // Alice gets longer timeout
+    R6 -> bobPubKeyBytes,          // Bob can claim with secret
+    R7 -> alicePubKeyBytes,        // Alice can reclaim after timeout
+    R8 -> "ERG_LOCK".getBytes()    // Identifies this as ERG lock
+  )
+)
+
+// Alice's deposit transaction
+val ergDepositTransaction = Transaction(
   inputs = partyA.selectUnspentBoxes(toSpend = swapAmount + MinTxFee),
   outputs = List(ergLockBox),
   fee = MinTxFee,
   sendChangeTo = partyA.wallet.getAddress
 )
 
-val ergLockTransactionSigned = partyA.wallet.sign(ergLockTransaction)
-blockchainSim.send(ergLockTransactionSigned)
+val ergDepositSigned = partyA.wallet.sign(ergDepositTransaction)
+blockchainSim.send(ergDepositSigned)
+println(s"✓ Alice deposited ${swapAmount/1000000000.0} ERG into hash-locked box")
+println(s"  Secret Hash: ${secretHash.take(16)}...")
+println(s"  Timeout: ${longTimeout} blocks\n")
 
-// Party B creates token lock box
+// ========================================
+// PHASE 2: PARTY B DEPOSITS TOKENS (RESPONDER)
+// ========================================
+println("=== PHASE 2: BOB DEPOSITS TOKENS ===\n")
+
+// Bob sees Alice's deposit and creates matching token deposit
 val tokenLockBox = Box(
   value = MinBoxValue,
-  script = swapContract,
-  tokens = List((tokenId -> tokenAmount))
+  script = atomicSwapContract,
+  tokens = List((tokenId -> tokenAmount)),
+  registers = Map(
+    R4 -> secretHash,              // Same secret hash as Alice's
+    R5 -> shortTimeout,            // Bob gets shorter timeout for security
+    R6 -> alicePubKeyBytes,        // Alice can claim tokens with secret
+    R7 -> bobPubKeyBytes,          // Bob can reclaim after timeout
+    R8 -> "TOKEN_LOCK".getBytes()  // Identifies this as token lock
+  )
 )
 
-val tokenLockTransaction = Transaction(
-  inputs = partyB.selectUnspentBoxes(tokens = List((tokenId -> tokenAmount))),
+// Bob's token deposit transaction
+val tokenDepositTransaction = Transaction(
+  inputs = partyB.selectUnspentBoxes(tokens = List((tokenId -> tokenAmount))) ++
+           partyB.selectUnspentBoxes(toSpend = MinBoxValue + MinTxFee),
   outputs = List(tokenLockBox),
   fee = MinTxFee,
   sendChangeTo = partyB.wallet.getAddress
 )
 
-val tokenLockTransactionSigned = partyB.wallet.sign(tokenLockTransaction)
-blockchainSim.send(tokenLockTransactionSigned)
+val tokenDepositSigned = partyB.wallet.sign(tokenDepositTransaction)
+blockchainSim.send(tokenDepositSigned)
+println(s"✓ Bob deposited ${tokenAmount} tokens into hash-locked box")
+println(s"  Same Secret Hash: ${secretHash.take(16)}...")
+println(s"  Timeout: ${shortTimeout} blocks (shorter for security)\n")
 
-// Party B claims ERG by revealing secret
-val ergClaimBox = Box(
-  value = swapAmount - MinTxFee,
-  script = contract(partyB.wallet.getAddress.pubKey)
-)
+// ========================================
+// PHASE 3: PARTY A CLAIMS TOKENS (REVEALS SECRET)
+// ========================================
+println("=== PHASE 3: ALICE CLAIMS TOKENS (REVEALS SECRET) ===\n")
 
-val ergClaimTransaction = Transaction(
-  inputs = List(ergLockTransactionSigned.outputs(0)),
-  outputs = List(ergClaimBox),
-  fee = MinTxFee
-)
-
-// Add secret to transaction context
-val ergClaimWithSecret = ergClaimTransaction.copy(
-  inputs = ergClaimTransaction.inputs.map(_.copy(
-    extension = Map(R4 -> "secret_phrase_here".getBytes())
-  ))
-)
-
-val ergClaimTransactionSigned = partyB.wallet.sign(ergClaimWithSecret)
-blockchainSim.send(ergClaimTransactionSigned)
-
-// Party A claims tokens using the same secret (now revealed)
-val tokenClaimBox = Box(
-  value = MinBoxValue,
+// Alice claims Bob's tokens by revealing the secret
+val aliceTokenBox = Box(
+  value = MinBoxValue - MinTxFee,
   script = contract(partyA.wallet.getAddress.pubKey),
   tokens = List((tokenId -> tokenAmount))
 )
 
-val tokenClaimTransaction = Transaction(
-  inputs = List(tokenLockTransactionSigned.outputs(0)),
-  outputs = List(tokenClaimBox),
+val aliceClaimTransaction = Transaction(
+  inputs = List(tokenDepositSigned.outputs(0)),
+  outputs = List(aliceTokenBox),
   fee = MinTxFee
 )
 
-val tokenClaimWithSecret = tokenClaimTransaction.copy(
-  inputs = tokenClaimTransaction.inputs.map(_.copy(
-    extension = Map(R4 -> "secret_phrase_here".getBytes())
+// Alice provides the secret to claim tokens
+val aliceClaimWithSecret = aliceClaimTransaction.copy(
+  inputs = aliceClaimTransaction.inputs.map(_.copy(
+    extension = Map(R4 -> secretPhrase.getBytes()) // Alice reveals secret
   ))
 )
 
-val tokenClaimTransactionSigned = partyA.wallet.sign(tokenClaimWithSecret)
-blockchainSim.send(tokenClaimTransactionSigned)`,
+val aliceClaimSigned = partyA.wallet.sign(aliceClaimWithSecret)
+blockchainSim.send(aliceClaimSigned)
+println(s"✓ Alice claimed ${tokenAmount} tokens by revealing secret")
+println(s"  Revealed Secret: '${secretPhrase}'")
+println(s"  Alice now has the tokens she wanted\n")
+
+// ========================================
+// PHASE 4: PARTY B CLAIMS ERG (USES REVEALED SECRET)
+// ========================================
+println("=== PHASE 4: BOB CLAIMS ERG (USES REVEALED SECRET) ===\n")
+
+// Bob can now see the revealed secret from Alice's transaction
+// and use it to claim Alice's ERG deposit
+val bobErgBox = Box(
+  value = swapAmount - MinTxFee,
+  script = contract(partyB.wallet.getAddress.pubKey)
+)
+
+val bobClaimTransaction = Transaction(
+  inputs = List(ergDepositSigned.outputs(0)),
+  outputs = List(bobErgBox),
+  fee = MinTxFee
+)
+
+// Bob uses the now-revealed secret to claim ERG
+val bobClaimWithSecret = bobClaimTransaction.copy(
+  inputs = bobClaimTransaction.inputs.map(_.copy(
+    extension = Map(R4 -> secretPhrase.getBytes()) // Bob uses revealed secret
+  ))
+)
+
+val bobClaimSigned = partyB.wallet.sign(bobClaimWithSecret)
+blockchainSim.send(bobClaimSigned)
+println(s"✓ Bob claimed ${swapAmount/1000000000.0} ERG using revealed secret")
+println(s"  Bob now has the ERG he wanted\n")
+
+// ========================================
+// SWAP COMPLETION SUMMARY
+// ========================================
+println("=== ATOMIC SWAP COMPLETED SUCCESSFULLY! ===\n")
+println("Final State:")
+println(s"  Alice: Started with ${partyAFunds/1000000000.0} ERG → Now has ${tokenAmount} tokens")
+println(s"  Bob:   Started with ${tokenAmount} tokens → Now has ${(swapAmount-MinTxFee)/1000000000.0} ERG")
+println("\nKey Features Demonstrated:")
+println("  ✓ Hash lock mechanism ensures atomicity")
+println("  ✓ Secret reveal enables both parties to claim")
+println("  ✓ Timeout protections prevent fund lock-up")
+println("  ✓ Cross-asset exchange without trusted intermediary")
+println("  ✓ Complete UTXO flow: Deposits → Claims → Completion")
+
+// ========================================
+// ALTERNATIVE SCENARIO: TIMEOUT REFUND
+// ========================================
+println("\n=== DEMONSTRATING TIMEOUT SCENARIO ===\n")
+
+// Create a second swap to show timeout behavior
+val timeoutSecretHash = Blake2b256("different_secret_for_timeout".getBytes())
+
+val timeoutErgBox = Box(
+  value = 50000000L, // 0.05 ERG
+  script = atomicSwapContract,
+  registers = Map(
+    R4 -> timeoutSecretHash,
+    R5 -> 50L, // Short timeout for demo
+    R6 -> bobPubKeyBytes,
+    R7 -> alicePubKeyBytes,
+    R8 -> "ERG_LOCK".getBytes()
+  )
+)
+
+val timeoutDepositTx = Transaction(
+  inputs = partyA.selectUnspentBoxes(toSpend = 50000000L + MinTxFee),
+  outputs = List(timeoutErgBox),
+  fee = MinTxFee,
+  sendChangeTo = partyA.wallet.getAddress
+)
+
+val timeoutDepositSigned = partyA.wallet.sign(timeoutDepositTx)
+blockchainSim.send(timeoutDepositSigned)
+
+// Simulate time passing beyond timeout
+blockchainSim.advanceTime(60L) // Advance past timeout
+
+// Alice reclaims her ERG after timeout
+val aliceRefundBox = Box(
+  value = 50000000L - MinTxFee,
+  script = contract(partyA.wallet.getAddress.pubKey)
+)
+
+val refundTransaction = Transaction(
+  inputs = List(timeoutDepositSigned.outputs(0)),
+  outputs = List(aliceRefundBox),
+  fee = MinTxFee
+)
+
+val refundSigned = partyA.wallet.sign(refundTransaction)
+blockchainSim.send(refundSigned)
+
+println("✓ Alice reclaimed her ERG after timeout (no counterparty response)")
+println("  This demonstrates the safety mechanism for failed swaps\n")
+
+// ========================================
+// EDUCATIONAL SUMMARY
+// ========================================
+println("=== EDUCATIONAL INSIGHTS ===\n")
+println("Hash Time-Locked Contracts (HTLCs) enable:")
+println("  • Trustless atomic swaps between any assets")
+println("  • Cross-chain compatibility with same hash")
+println("  • Timeout safety preventing permanent fund locks")
+println("  • Secret revelation creating claim atomicity")
+println("\nUTXO Flow Pattern:")
+println("  PartyA ERG → Hash-locked ERG → PartyB ERG")
+println("  PartyB Tokens → Hash-locked Tokens → PartyA Tokens")
+println("  Secret: Created by PartyA, revealed when claiming, used by PartyB")
+println("\nSecurity Properties:")
+println("  • Either both parties get what they want, or both get refunds")
+println("  • No single point of failure or trusted third party")
+println("  • Timeout mechanisms prevent indefinite locks")
+println("  • Hash commitment prevents front-running")`,
 
   doubleChainSwap: `// Double Chain (Cross-Chain) Atomic Swap Contract
 // Enables trustless exchange between different blockchains using hash time locks
