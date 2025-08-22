@@ -1,10 +1,17 @@
 import { useEffect, useRef, useCallback } from 'react';
 
+// Type definitions for memory management
+interface PerformanceMemory {
+  usedJSHeapSize: number;
+  totalJSHeapSize: number;
+  jsHeapSizeLimit: number;
+}
+
 // Memory leak detection and cleanup utilities
 export class MemoryManager {
   private static listeners = new Map<string, { target: EventTarget; type: string; handler: EventListener }>();
   private static timers = new Map<string, NodeJS.Timeout>();
-  private static observers = new Map<string, { observer: any; cleanup: () => void }>();
+  private static observers = new Map<string, { observer: IntersectionObserver | ResizeObserver | MutationObserver; cleanup: () => void }>();
   private static animationFrames = new Set<number>();
 
   // Event listener management with automatic cleanup
@@ -62,7 +69,7 @@ export class MemoryManager {
   // Observer management (IntersectionObserver, ResizeObserver, etc.)
   static addObserverWithCleanup(
     observerType: string,
-    createObserver: () => { observer: any; cleanup: () => void }
+    createObserver: () => { observer: IntersectionObserver | ResizeObserver | MutationObserver; cleanup: () => void }
   ): () => void {
     const id = `${observerType}-${Math.random().toString(36).substr(2, 9)}`;
     const { observer, cleanup } = createObserver();
@@ -129,7 +136,7 @@ export class MemoryManager {
           'memory' in performance && 
           performance.memory &&
           typeof performance.memory === 'object') {
-        const memory = performance.memory as any;
+        const memory = performance.memory as PerformanceMemory;
         // Only return safe, non-fingerprinting memory stats
         return {
           usedJSHeapSize: memory.usedJSHeapSize,
@@ -201,11 +208,11 @@ export function useTimer(
 // React hook for memory-safe observers
 export function useObserver<T extends Element>(
   target: T | null,
-  callback: (entries: any[]) => void,
+  callback: (entries: IntersectionObserverEntry[] | ResizeObserverEntry[] | MutationRecord[]) => void,
   observerType: 'intersection' | 'resize' | 'mutation',
-  options?: any
+  options?: IntersectionObserverInit | ResizeObserverOptions | MutationObserverInit
 ): void {
-  const savedCallback = useRef<((entries: any[]) => void) | null>(null);
+  const savedCallback = useRef<((entries: IntersectionObserverEntry[] | ResizeObserverEntry[] | MutationRecord[]) => void) | null>(null);
 
   useEffect(() => {
     savedCallback.current = callback;
@@ -214,12 +221,12 @@ export function useObserver<T extends Element>(
   useEffect(() => {
     if (!target || !savedCallback.current) return;
 
-    const observerCallback = (entries: any[]) => savedCallback.current?.(entries);
+    const observerCallback = (entries: IntersectionObserverEntry[] | ResizeObserverEntry[] | MutationRecord[]) => savedCallback.current?.(entries);
 
     return MemoryManager.addObserverWithCleanup(
       observerType,
       () => {
-        let observer: any;
+        let observer: IntersectionObserver | ResizeObserver | MutationObserver;
         let cleanup: () => void;
 
         switch (observerType) {
@@ -324,7 +331,7 @@ export function useMemoryLeakDetection(
   enabled: boolean = process.env.NODE_ENV === 'development'
 ): void {
   const mountTime = useRef<number | null>(null);
-  const initialMemory = useRef<any | null>(null);
+  const initialMemory = useRef<{ usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number } | null>(null);
 
   useEffect(() => {
     if (!enabled) return;
@@ -376,10 +383,7 @@ export function useGlobalMemoryCleanup(): void {
     };
   }, []);
 
-  // Periodic cleanup (every 5 minutes)
-  useTimer(() => {
-    MemoryManager.scheduleGC();
-  }, 5 * 60 * 1000, 'interval');
+  // Note: Removed automatic GC scheduling for security reasons - let browser manage memory
 }
 
 export default MemoryManager;

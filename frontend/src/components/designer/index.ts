@@ -120,7 +120,12 @@ export type PerformanceConfig = typeof PERFORMANCE_PRESETS[keyof typeof PERFORMA
 export const createOptimizedDesigner = (config: {
   performance?: keyof typeof PERFORMANCE_PRESETS;
   features?: string[];
-  deviceCapabilities?: any;
+  deviceCapabilities?: {
+    touchSupported: boolean;
+    maxTouchPoints: number;
+    screenSize: { width: number; height: number };
+    pixelRatio: number;
+  };
 }) => {
   const recommendation = getRecommendedDesigner({
     performanceMode: config.performance === 'HIGH_PERFORMANCE' ? 'high' : 

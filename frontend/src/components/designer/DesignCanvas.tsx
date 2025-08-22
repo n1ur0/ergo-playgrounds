@@ -1,5 +1,5 @@
 import React, { forwardRef, useCallback, useState, useRef } from 'react';
-import type { ContractComponent, Connection, Position } from '../../types/contractDesigner';
+import type { ContractComponent, Connection, Position, ComponentType } from '../../types/contractDesigner';
 import CanvasComponent from './CanvasComponent';
 import ConnectionLine from './ConnectionLine';
 import './DesignCanvas.css';
@@ -105,7 +105,7 @@ const DesignCanvas = forwardRef<HTMLDivElement, DesignCanvasProps>(({
     event.preventDefault();
     setIsDragOver(false);
     
-    const componentType = event.dataTransfer.getData('component-type') as any;
+    const componentType = event.dataTransfer.getData('component-type') as ComponentType;
     
     if (componentType && canvasRef.current) {
       const rect = canvasRef.current.getBoundingClientRect();

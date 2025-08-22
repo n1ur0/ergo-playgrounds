@@ -276,7 +276,7 @@ export function useContractDesignerErrorHandler() {
       action?: string;
       componentType?: string;
       componentId?: string;
-      additionalData?: any;
+      additionalData?: Record<string, unknown>;
     }
   ) => {
     reportError(error, {

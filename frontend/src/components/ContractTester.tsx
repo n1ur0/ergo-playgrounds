@@ -10,7 +10,7 @@ import './ContractTester.css';
 
 interface ContractTesterProps {
   selectedExample: string | null;
-  layout?: any; // Optional layout prop for responsive behavior
+  layout?: 'vertical' | 'horizontal' | 'responsive'; // Optional layout prop for responsive behavior
 }
 
 interface SimulationResult {
@@ -2147,7 +2147,7 @@ const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample }) => {
   const [isRunning, setIsRunning] = useState(false);
   const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
   const [activeTab, setActiveTab] = useState<'code' | 'params' | 'results' | 'diagram' | 'learn'>('learn');
-  const [parameters, setParameters] = useState<Record<string, any>>({});
+  const [parameters, setParameters] = useState<Record<string, string | number | boolean>>({});
 
   useEffect(() => {
     console.log('ContractTester: selectedExample changed to:', selectedExample);

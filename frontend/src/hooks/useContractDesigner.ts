@@ -299,7 +299,7 @@ function createEnhancedInitialState(_: null): ExtendedContractDesignState {
 
 // Persistence utilities
 const persistenceUtils = {
-  saveToStorage: (key: string, data: any) => {
+  saveToStorage: (key: string, data: unknown) => {
     try {
       localStorage.setItem(key, JSON.stringify(data));
     } catch (error) {
@@ -405,7 +405,7 @@ export function useContractDesigner() {
   }, [state, testScenarios]);
   
   // Load contract function
-  const loadContract = useCallback(async (contractData: any) => {
+  const loadContract = useCallback(async (contractData: Partial<ContractDesignState>) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     
     try {
@@ -684,7 +684,7 @@ function getComponentCategory(type: ComponentType): ContractComponent['category'
 }
 
 
-async function executeContractTest(scenarioId: string): Promise<any> {
+async function executeContractTest(scenarioId: string): Promise<{ success: boolean; results?: unknown; error?: string }> {
   // Simulate test execution
   await new Promise(resolve => setTimeout(resolve, 2000));
   

@@ -3,6 +3,18 @@ import type { ContractDesignerProps } from '../../types/contractDesigner';
 import { useAccessibilityPreferences } from '../../utils/accessibility';
 import { ErrorBoundary, type ErrorDetails } from '../common/ErrorBoundary';
 
+// Type definitions for navigator extensions
+declare global {
+  interface Navigator {
+    deviceMemory?: number;
+    connection?: {
+      effectiveType: '2g' | '3g' | '4g' | 'slow-2g';
+      downlink: number;
+      saveData: boolean;
+    };
+  }
+}
+
 // Lazy load heavy components for better initial load performance
 const OptimizedContractDesigner = lazy(() => 
   import('./OptimizedContractDesigner').then(module => ({
@@ -59,9 +71,9 @@ ErrorFallback.displayName = 'ErrorFallback';
 function useDeviceCapabilities() {
   return useMemo(() => {
     const isLowEnd = navigator.hardwareConcurrency <= 2;
-    const hasLimitedMemory = (navigator as any).deviceMemory <= 2;
-    const isSlowConnection = (navigator as any).connection?.effectiveType === '2g' || 
-                            (navigator as any).connection?.effectiveType === 'slow-2g';
+    const hasLimitedMemory = navigator.deviceMemory ? navigator.deviceMemory <= 2 : false;
+    const isSlowConnection = navigator.connection?.effectiveType === '2g' || 
+                            navigator.connection?.effectiveType === 'slow-2g';
     
     return {
       isLowEnd: isLowEnd || hasLimitedMemory || isSlowConnection,
