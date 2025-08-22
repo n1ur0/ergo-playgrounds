@@ -89,9 +89,9 @@
 
 .layout {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 340px 1fr;
   grid-template-rows: 1fr;
-  min-height: calc(100vh - 120px);
+  min-height: calc(100vh - 80px);
   gap: 0;
 }
 
@@ -164,7 +164,7 @@
 .content {
   background: var(--color-background);
   padding: var(--space-xl);
-  overflow: hidden;
+  overflow: visible;
   position: relative;
 }
 
@@ -246,7 +246,7 @@
 /* Progressive Enhancement - Container Queries */
 @container (min-width: 1200px) {
   .layout {
-    grid-template-columns: 350px 1fr;
+    grid-template-columns: 380px 1fr;
   }
 }
 
@@ -292,11 +292,11 @@
 }
 
 .layout--desktop {
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 340px 1fr;
 }
 
 .layout--large {
-  grid-template-columns: 350px 1fr;
+  grid-template-columns: 380px 1fr;
 }
 
 /* Animation Support */

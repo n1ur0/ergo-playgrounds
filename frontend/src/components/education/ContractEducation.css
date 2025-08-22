@@ -1,5 +1,25 @@
 /* ContractEducation Component Styles - Teenager-Friendly Educational Interface */
 
+/* Enhanced scrolling for all scrollable areas */
+.contract-education *::-webkit-scrollbar {
+  width: 8px;
+}
+
+.contract-education *::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.contract-education *::-webkit-scrollbar-thumb {
+  background: rgba(100, 181, 246, 0.5);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.contract-education *::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 181, 246, 0.7);
+}
+
 .contract-education {
   height: 100%;
   display: flex;
@@ -242,6 +262,36 @@
   background: rgba(0, 0, 0, 0.2);
   border-radius: 16px;
   padding: 1.5rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Enable smooth scrolling */
+  scroll-behavior: smooth;
+  /* Style scrollbar for better UX */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 181, 246, 0.5) rgba(255, 255, 255, 0.1);
+  /* Allow content to grow naturally - optimized for better space utilization */
+  min-height: 0;
+  max-height: calc(100vh - 180px);
+}
+
+/* Webkit scrollbar styling for education content */
+.education-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.education-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.education-content::-webkit-scrollbar-thumb {
+  background: rgba(100, 181, 246, 0.5);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.education-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 181, 246, 0.7);
 }
 
 /* Overview Section */
@@ -249,6 +299,7 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  padding-bottom: 2rem;
 }
 
 .analogy-card {
@@ -426,6 +477,10 @@
 }
 
 /* Concepts Section */
+.concepts-section {
+  padding-bottom: 2rem;
+}
+
 .concepts-section h3 {
   margin: 0 0 1.5rem 0;
   font-size: 1.5rem;
@@ -557,6 +612,7 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  padding-bottom: 2rem;
 }
 
 .process-step {
@@ -676,6 +732,7 @@
   flex-direction: column;
   gap: 2rem;
   margin-bottom: 2rem;
+  padding-bottom: 2rem;
 }
 
 .quiz-question {
@@ -826,7 +883,8 @@
 /* ConceptCard Component with Flip Animations */
 .concept-card-container {
   perspective: 1000px;
-  height: 300px;
+  min-height: 300px;
+  height: auto;
 }
 
 .concept-card-flipper {
@@ -1274,7 +1332,8 @@
   }
   
   .concept-card-container {
-    height: 280px;
+    min-height: 280px;
+    height: auto;
   }
   
   .interactive-box {
@@ -1304,6 +1363,10 @@
   
   .education-content {
     padding: 1rem;
+    max-height: calc(100vh - 160px);
+    /* Enhanced mobile scrolling */
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2rem;
   }
   
   .process-header {
@@ -1325,7 +1388,8 @@
   }
   
   .concept-card-container {
-    height: 320px;
+    min-height: 320px;
+    height: auto;
   }
   
   .step-by-step-flow {
@@ -1346,6 +1410,14 @@
   
   .interactive-box {
     padding: 1rem;
+  }
+  
+  /* Enhanced mobile scrolling for all scrollable elements */
+  .quiz-container,
+  .quiz-questions,
+  .concepts-grid,
+  .overview-section {
+    -webkit-overflow-scrolling: touch;
   }
 }
 

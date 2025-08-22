@@ -6,11 +6,13 @@ import ContractParameters from './ContractParameters';
 // import UTXOVisualization from './visualization/UTXOVisualization';
 import ContractEducation from './education/ContractEducation';
 import ContractDesigner from './designer/ContractDesigner';
+import WelcomePage from './WelcomePage';
 import './ContractTester.css';
 
 interface ContractTesterProps {
   selectedExample: string | null;
   layout?: any; // Optional layout prop for responsive behavior
+  onSelectExample?: (example: string) => void; // Add callback for example selection
 }
 
 interface SimulationResult {
@@ -2142,7 +2144,7 @@ println("  • Notification scanning reveals potential recipients")
 println("  • Emergency timeouts balance recovery with privacy")`
 };
 
-const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample }) => {
+const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample, layout, onSelectExample }) => {
   const [code, setCode] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
@@ -2235,13 +2237,11 @@ const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample }) => {
 
   if (!selectedExample) {
     return (
-      <div className="contract-tester-empty">
-        <div className="empty-state">
-          <Code size={48} />
-          <h2>Select a Smart Contract Example</h2>
-          <p>Choose an example from the sidebar to start testing smart contracts</p>
-        </div>
-      </div>
+      <WelcomePage 
+        onSelectExample={onSelectExample || (() => {})}
+        onToggleSidebar={layout?.toggleSidebar}
+        isMobile={layout?.isMobile}
+      />
     );
   }
 

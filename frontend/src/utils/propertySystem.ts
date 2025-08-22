@@ -1,4 +1,4 @@
-import type { ContractComponent, ComponentType, ValidationError } from '../types/contractDesigner';
+import type { ContractComponent, ComponentType, ValidationError, ComponentProperties } from '../types/contractDesigner';
 import { getComponentTemplate } from '../data/componentTemplates';
 
 // Property definition types
@@ -8,7 +8,7 @@ export interface PropertyDefinition {
   description?: string;
   type: 'string' | 'number' | 'boolean' | 'select' | 'textarea' | 'tokenId' | 'publicKey' | 'register' | 'array';
   required?: boolean;
-  defaultValue?: any;
+  defaultValue?: ComponentProperties[string];
   validation?: PropertyValidation;
   options?: SelectOption[];
   placeholder?: string;
@@ -30,7 +30,7 @@ export interface PropertyValidation {
   pattern?: string; // Regex pattern
   minLength?: number;
   maxLength?: number;
-  custom?: (value: any, component: ContractComponent) => ValidationResult;
+  custom?: (value: ComponentProperties[string], component: ContractComponent) => ValidationResult;
 }
 
 export interface ValidationResult {
@@ -41,7 +41,7 @@ export interface ValidationResult {
 
 export interface ConditionalProperty {
   dependsOn: string; // Property key
-  condition: (value: any) => boolean;
+  condition: (value: ComponentProperties[string]) => boolean;
 }
 
 // Component-specific property schemas
@@ -488,7 +488,7 @@ export class ComponentPropertySystem {
   validateProperty(
     componentType: ComponentType, 
     propertyKey: string, 
-    value: any, 
+    value: ComponentProperties[string], 
     component: ContractComponent
   ): ValidationResult {
     const definition = this.getPropertyDefinition(componentType, propertyKey);
@@ -548,7 +548,7 @@ export class ComponentPropertySystem {
     return { isValid: true };
   }
 
-  private validateType(definition: PropertyDefinition, value: any): ValidationResult {
+  private validateType(definition: PropertyDefinition, value: ComponentProperties[string]): ValidationResult {
     switch (definition.type) {
       case 'string':
       case 'textarea':
@@ -635,9 +635,9 @@ export class ComponentPropertySystem {
     return errors;
   }
 
-  getDefaultProperties(componentType: ComponentType): Record<string, any> {
+  getDefaultProperties(componentType: ComponentType): ComponentProperties {
     const schema = this.getPropertySchema(componentType);
-    const defaults: Record<string, any> = {};
+    const defaults: ComponentProperties = {};
 
     for (const definition of schema) {
       if (definition.defaultValue !== undefined) {
@@ -651,7 +651,7 @@ export class ComponentPropertySystem {
   isPropertyVisible(
     componentType: ComponentType, 
     propertyKey: string, 
-    componentProperties: Record<string, any>
+    componentProperties: ComponentProperties
   ): boolean {
     const definition = this.getPropertyDefinition(componentType, propertyKey);
     if (!definition || !definition.conditional) {
@@ -683,7 +683,7 @@ export function validateAllComponents(components: ContractComponent[]): Validati
   return allErrors;
 }
 
-export function getComponentDefaults(componentType: ComponentType): Record<string, any> {
+export function getComponentDefaults(componentType: ComponentType): ComponentProperties {
   return propertySystem.getDefaultProperties(componentType);
 }
 
