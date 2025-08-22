@@ -14,17 +14,10 @@ export default defineConfig({
         manualChunks: {
           // React and core libraries
           'react-vendor': ['react', 'react-dom'],
-          // UI libraries
-          'ui-vendor': ['framer-motion', 'lucide-react', 'react-syntax-highlighter'],
-          // React Flow for canvas operations
-          'canvas-vendor': ['reactflow'],
-          // Contract designer components (lazy load)
-          'designer': [
-            './src/components/designer/ContractDesigner',
-            './src/components/designer/OptimizedContractDesigner',
-            './src/components/designer/DesignCanvas',
-            './src/components/designer/ComponentPalette'
-          ]
+          // Split large UI libraries for better caching
+          'motion-vendor': ['framer-motion'],
+          'syntax-vendor': ['react-syntax-highlighter'],
+          'icons-vendor': ['lucide-react']
         }
       }
     },
@@ -45,4 +38,9 @@ export default defineConfig({
     devSourcemap: false
   },
   // Note: experimental features disabled for compatibility
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
+  }
 })

@@ -111,7 +111,7 @@ function optimizedStateReducer<T extends Record<string, unknown>>(
 }
 
 // Main optimized state hook
-export function useOptimizedState<T extends Record<string, unknown>>
+export function useOptimizedState<T extends Record<string, unknown>>(
   config: OptimizedStateConfig<T>
 ) {
   const {

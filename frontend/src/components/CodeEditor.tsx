@@ -1,6 +1,8 @@
 import React, { useRef, useEffect } from 'react';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import scala from 'react-syntax-highlighter/dist/esm/languages/prism/scala';
+import typescript from 'react-syntax-highlighter/dist/esm/languages/prism/typescript';
 import { ergoScriptLanguage } from '../utils/ergoScriptLanguage';
 import './CodeEditor.css';
 
@@ -14,13 +16,15 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, language }) =>
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    // Register only the languages we need
+    SyntaxHighlighter.registerLanguage('scala', scala);
+    SyntaxHighlighter.registerLanguage('typescript', typescript);
+    
     // Register custom ErgoScript language
     if (language === 'ergoscript') {
-      // This registers our custom language definition
       try {
-        (SyntaxHighlighter as typeof SyntaxHighlighter & { registerLanguage: (name: string, fn: () => object) => void }).registerLanguage('ergoscript', () => ergoScriptLanguage);
+        SyntaxHighlighter.registerLanguage('ergoscript', () => ergoScriptLanguage);
       } catch (error) {
-        // Language registration might fail, but that's okay
         console.warn('Could not register ErgoScript language:', error);
       }
     }

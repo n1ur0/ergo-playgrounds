@@ -9,7 +9,7 @@ import {
   Activity,
   TrendingUp,
   Clock
-} from 'lucide-react';
+} from '../utils/icons';
 import './SimulationResults.css';
 
 interface Transaction {

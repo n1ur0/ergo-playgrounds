@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Play } from 'lucide-react';
+import { FileText, Play } from '../utils/icons';
 import './ExamplesList.css';
 
 interface ExamplesListProps {
