@@ -121,20 +121,29 @@ export class MemoryManager {
     this.animationFrames.clear();
   }
 
-  // Memory usage monitoring (if available)
-  static getMemoryUsage(): any {
-    if ('memory' in performance) {
-      return (performance as any).memory;
+  // Memory usage monitoring (secure implementation)
+  static getMemoryUsage(): { usedJSHeapSize?: number; totalJSHeapSize?: number; jsHeapSizeLimit?: number } | null {
+    try {
+      // Only access memory API in secure contexts with proper feature detection
+      if (typeof performance !== 'undefined' && 
+          'memory' in performance && 
+          performance.memory &&
+          typeof performance.memory === 'object') {
+        const memory = performance.memory as any;
+        // Only return safe, non-fingerprinting memory stats
+        return {
+          usedJSHeapSize: memory.usedJSHeapSize,
+          totalJSHeapSize: memory.totalJSHeapSize,
+          jsHeapSizeLimit: memory.jsHeapSizeLimit
+        };
+      }
+    } catch (error) {
+      console.warn('Memory API not available or access denied:', error);
     }
     return null;
   }
 
-  // Garbage collection hint (if available)
-  static scheduleGC(): void {
-    if ('gc' in window && typeof (window as any).gc === 'function') {
-      (window as any).gc();
-    }
-  }
+  // Removed automatic GC scheduling for security - let browser manage memory
 }
 
 // React hook for memory-safe event listeners
