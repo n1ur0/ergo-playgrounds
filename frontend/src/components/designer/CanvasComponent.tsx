@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import type { ContractComponent, Position, ComponentTemplate } from '../../types/contractDesigner';
+import type { ContractComponent, Position, ComponentTemplate, Port } from '../../types/contractDesigner';
 import { getComponentTemplate } from '../../data/componentTemplates';
 import './CanvasComponent.css';
 
@@ -14,7 +14,7 @@ interface CanvasComponentProps {
 }
 
 interface PortProps {
-  port: any;
+  port: Port;
   componentId: string;
   type: 'input' | 'output';
   onConnectionStart: (componentId: string, portId: string, portType: 'input' | 'output', position: Position) => void;

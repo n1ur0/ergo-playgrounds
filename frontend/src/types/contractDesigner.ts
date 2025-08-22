@@ -30,7 +30,7 @@ export interface ContractComponent {
   type: ComponentType;
   position: Position;
   size: Size;
-  properties: Record<string, any>;
+  properties: ComponentProperties;
   connections: Connection[];
   label: string;
   description: string;
@@ -78,7 +78,7 @@ export interface ComponentTemplate {
   description: string;
   category: ContractComponent['category'];
   icon: string;
-  defaultProperties: Record<string, any>;
+  defaultProperties: ComponentProperties;
   ports: {
     inputs: Port[];
     outputs: Port[];
@@ -109,14 +109,14 @@ export interface TestScenario {
 
 export interface TestInput {
   componentId: string;
-  value: any;
+  value: TestValue;
   label: string;
   type: 'erg' | 'token' | 'data' | 'signature';
 }
 
 export interface TestOutput {
   componentId: string;
-  expectedValue: any;
+  expectedValue: TestValue;
   tolerance?: number;
   description: string;
 }
@@ -143,7 +143,7 @@ export interface TestResults {
   success: boolean;
   executionTime: number;
   gasUsed: number;
-  outputs: any[];
+  outputs: TestOutput[];
   logs: string[];
   error?: string;
   stateChanges: StateChange[];
@@ -151,8 +151,8 @@ export interface TestResults {
 
 export interface StateChange {
   type: 'box-created' | 'box-spent' | 'balance-updated';
-  before?: any;
-  after: any;
+  before?: StateValue;
+  after: StateValue;
   timestamp: number;
 }
 
@@ -192,3 +192,31 @@ export interface VisualizationConfig {
   animateTransactions: boolean;
   layoutAlgorithm: 'force-directed' | 'hierarchical' | 'circular';
 }
+
+// Additional type definitions to replace any types
+export interface ComponentProperties {
+  [key: string]: string | number | boolean | ComponentProperties | ComponentProperties[] | null | undefined;
+}
+
+export type TestValue = 
+  | string
+  | number
+  | boolean
+  | { type: 'erg'; amount: number }
+  | { type: 'token'; tokenId: string; amount: number }
+  | { type: 'data'; value: string; encoding?: 'hex' | 'base64' | 'utf8' }
+  | { type: 'signature'; publicKey: string; message: string }
+  | TestValue[];
+
+export type StateValue =
+  | string
+  | number
+  | boolean
+  | {
+      boxId?: string;
+      address?: string;
+      value?: number;
+      tokens?: Array<{ tokenId: string; amount: number }>;
+      registers?: Record<string, string>;
+    }
+  | StateValue[];

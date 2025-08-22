@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import type { ContractComponent } from '../../types/contractDesigner';
+import type { ContractComponent, ComponentProperties } from '../../types/contractDesigner';
 import { getComponentTemplate } from '../../data/componentTemplates';
 import { propertySystem, type PropertyDefinition, type SelectOption } from '../../utils/propertySystem';
 import './PropertyPanel.css';
@@ -98,7 +98,7 @@ export default function PropertyPanel({ selectedComponent, onComponentUpdate }: 
   const [propertyErrors, setPropertyErrors] = useState<Map<string, string>>(new Map());
   const [propertyWarnings, setPropertyWarnings] = useState<Map<string, string>>(new Map());
 
-  const handlePropertyUpdate = useCallback((key: string, value: any) => {
+  const handlePropertyUpdate = useCallback((key: string, value: ComponentProperties[string]) => {
     // Update the component property
     onComponentUpdate(selectedComponent.id, {
       properties: { ...selectedComponent.properties, [key]: value }
@@ -168,10 +168,10 @@ export default function PropertyPanel({ selectedComponent, onComponentUpdate }: 
   }, [selectedComponent, propertyErrors, propertyWarnings]);
 
   // Render appropriate input component based on property definition
-  const renderPropertyInput = useCallback((property: PropertyDefinition, value: any) => {
+  const renderPropertyInput = useCallback((property: PropertyDefinition, value: ComponentProperties[string]) => {
     const commonProps = {
       value: value ?? '',
-      onChange: (newValue: any) => handlePropertyUpdate(property.key, newValue)
+      onChange: (newValue: ComponentProperties[string]) => handlePropertyUpdate(property.key, newValue)
     };
 
     switch (property.type) {
@@ -257,7 +257,7 @@ export default function PropertyPanel({ selectedComponent, onComponentUpdate }: 
   }, [handlePropertyUpdate]);
 
   // Render array property with add/remove functionality
-  const renderArrayProperty = useCallback((property: PropertyDefinition, value: any[]) => {
+  const renderArrayProperty = useCallback((property: PropertyDefinition, value: (ComponentProperties[string])[]) => {
     const addItem = () => {
       const newValue = [...value, ''];
       handlePropertyUpdate(property.key, newValue);
@@ -268,7 +268,7 @@ export default function PropertyPanel({ selectedComponent, onComponentUpdate }: 
       handlePropertyUpdate(property.key, newValue);
     };
 
-    const updateItem = (index: number, itemValue: any) => {
+    const updateItem = (index: number, itemValue: ComponentProperties[string]) => {
       const newValue = [...value];
       newValue[index] = itemValue;
       handlePropertyUpdate(property.key, newValue);

@@ -270,7 +270,7 @@ export default function ComponentPalette({ isExpanded }: ComponentPaletteProps) 
               <select
                 className="complexity-filter"
                 value={complexityFilter}
-                onChange={(e) => setComplexityFilter(e.target.value as any)}
+                onChange={(e) => setComplexityFilter(e.target.value as 'all' | 'beginner' | 'intermediate' | 'advanced')}
               >
                 <option value="all">All Levels</option>
                 <option value="beginner">Beginner</option>

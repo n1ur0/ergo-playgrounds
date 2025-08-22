@@ -1,5 +1,6 @@
 import { useReducer, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useDebounce, useBatchUpdates, performanceUtils } from './usePerformanceOptimizations';
+import type { ContractComponent, Connection } from '../types/contractDesigner';
 
 // Optimized state management for high-performance components
 export interface OptimizedStateConfig<T> {
@@ -31,7 +32,7 @@ type OptimizedStateAction<T> =
   | { type: 'LOAD_STATE'; payload: T };
 
 // High-performance state reducer with history and batching
-function optimizedStateReducer<T extends Record<string, any>>(
+function optimizedStateReducer<T extends Record<string, unknown>>(
   state: OptimizedStateHistory<T>,
   action: OptimizedStateAction<T>,
   config: OptimizedStateConfig<T>
@@ -110,7 +111,7 @@ function optimizedStateReducer<T extends Record<string, any>>(
 }
 
 // Main optimized state hook
-export function useOptimizedState<T extends Record<string, any>>(
+export function useOptimizedState<T extends Record<string, unknown>>
   config: OptimizedStateConfig<T>
 ) {
   const {
@@ -283,8 +284,8 @@ export function useOptimizedState<T extends Record<string, any>>(
 
 // Specialized hook for canvas state management
 export function useCanvasState(initialCanvas: {
-  components: any[];
-  connections: any[];
+  components: ContractComponent[];
+  connections: Connection[];
   selectedComponent: string | null;
   zoomLevel: number;
   offset: { x: number; y: number };
@@ -304,7 +305,7 @@ export function useCanvasState(initialCanvas: {
 }
 
 // Specialized hook for form state management
-export function useFormState<T extends Record<string, any>>(initialForm: T) {
+export function useFormState<T extends Record<string, unknown>>(initialForm: T) {
   const optimizedState = useOptimizedState({
     initialState: {
       values: initialForm,

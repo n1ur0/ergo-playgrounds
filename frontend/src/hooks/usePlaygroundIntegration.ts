@@ -1,11 +1,20 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import type { ContractComponent, Connection, GeneratedContract } from '../types/contractDesigner';
+import type { ContractComponent, Connection, GeneratedContract, StateValue } from '../types/contractDesigner';
+
+// Additional type definitions for playground integration
+interface ErgoBox {
+  boxId: string;
+  value: number;
+  address: string;
+  tokens: Array<{ tokenId: string; amount: number }>;
+  registers: Record<string, string>;
+}
 
 // Types for playground integration
 export interface PlaygroundExecutionResult {
   success: boolean;
   transactionId?: string;
-  outputBoxes?: any[];
+  outputBoxes?: ErgoBox[];
   executionTime: number;
   gasUsed: number;
   logs: string[];
@@ -20,8 +29,8 @@ export interface StateChange {
   address?: string;
   amount?: number;
   tokenId?: string;
-  before?: any;
-  after?: any;
+  before?: StateValue;
+  after: StateValue;
   timestamp: number;
 }
 
@@ -32,7 +41,7 @@ export interface PlaygroundParty {
   publicKey: string;
   balance: number;
   tokens: Record<string, number>;
-  boxes: any[];
+  boxes: ErgoBox[];
 }
 
 export interface PlaygroundScenario {
@@ -42,15 +51,15 @@ export interface PlaygroundScenario {
   parties: PlaygroundParty[];
   initialHeight: number;
   steps: PlaygroundStep[];
-  expectedResult?: any;
+  expectedResult?: StateValue;
 }
 
 export interface PlaygroundStep {
   id: string;
   type: 'transaction' | 'height-advance' | 'token-creation' | 'assertion';
   description: string;
-  parameters: Record<string, any>;
-  expectedOutcome?: any;
+  parameters: Record<string, unknown>;
+  expectedOutcome?: StateValue;
 }
 
 // API client for playground backend
@@ -140,7 +149,7 @@ class PlaygroundApiClient {
 
   async generateTestData(contractType: string): Promise<{
     parties: PlaygroundParty[];
-    initialBoxes: any[];
+    initialBoxes: ErgoBox[];
     testScenarios: PlaygroundScenario[];
   }> {
     return this.makeRequest(`/test-data/${contractType}`);
@@ -157,7 +166,7 @@ export function usePlaygroundIntegration() {
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionResults, setExecutionResults] = useState<PlaygroundExecutionResult[]>([]);
   const [activeScenario, setActiveScenario] = useState<PlaygroundScenario | null>(null);
-  const [compilationCache, setCompilationCache] = useState<Map<string, any>>(new Map());
+  const [compilationCache, setCompilationCache] = useState<Map<string, unknown>>(new Map());
   
   const apiClient = useRef(new PlaygroundApiClient());
   const executionQueue = useRef<Array<() => Promise<void>>>([]);

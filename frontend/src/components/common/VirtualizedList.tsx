@@ -21,7 +21,7 @@ interface VirtualizedListHandle {
   scrollToBottom: () => void;
 }
 
-export const VirtualizedList = React.forwardRef<VirtualizedListHandle, VirtualizedListProps<any>>((props, ref) => {
+export const VirtualizedList = React.forwardRef<VirtualizedListHandle, VirtualizedListProps<unknown>>((props, ref) => {
   const {
     items,
     itemHeight,

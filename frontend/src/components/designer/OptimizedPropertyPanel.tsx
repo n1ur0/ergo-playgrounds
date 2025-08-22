@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, memo } from 'react';
-import type { ContractComponent } from '../../types/contractDesigner';
+import type { ContractComponent, ComponentProperties } from '../../types/contractDesigner';
 import { getComponentTemplate } from '../../data/componentTemplates';
 import { propertySystem, type PropertyDefinition } from '../../utils/propertySystem';
 import './PropertyPanel.css';
@@ -92,8 +92,8 @@ CollapsibleSection.displayName = 'CollapsibleSection';
 // Memoized property input components for better performance
 interface PropertyInputProps {
   property: PropertyDefinition;
-  value: any;
-  onChange: (value: any) => void;
+  value: ComponentProperties[string];
+  onChange: (value: ComponentProperties[string]) => void;
 }
 
 const StringInput = memo<PropertyInputProps>(({ property, value, onChange }) => {
@@ -200,7 +200,7 @@ const TextareaInput = memo<PropertyInputProps>(({ property, value, onChange }) =
 TextareaInput.displayName = 'TextareaInput';
 
 interface ArrayInputProps extends PropertyInputProps {
-  onItemUpdate: (index: number, itemValue: any) => void;
+  onItemUpdate: (index: number, itemValue: ComponentProperties[string]) => void;
   onItemRemove: (index: number) => void;
   onItemAdd: () => void;
 }
@@ -213,7 +213,7 @@ const ArrayInput = memo<ArrayInputProps>(({
   onItemAdd 
 }) => {
   const memoizedItems = useMemo(() => {
-    return value.map((item: any, index: number) => (
+    return (value as ComponentProperties[string][]).map((item: ComponentProperties[string], index: number) => (
       <div key={index} className="array-item">
         <input
           type="text"
@@ -272,7 +272,7 @@ const OptimizedPropertyPanel = memo<PropertyPanelProps>(({
   );
 
   // Memoized property update handler with validation
-  const handlePropertyUpdate = useCallback((key: string, value: any) => {
+  const handlePropertyUpdate = useCallback((key: string, value: ComponentProperties[string]) => {
     if (!selectedComponent) return;
 
     // Update the component property
@@ -321,10 +321,10 @@ const OptimizedPropertyPanel = memo<PropertyPanelProps>(({
       onItemRemove: (index: number) => {
         if (!selectedComponent) return;
         const currentValue = selectedComponent.properties[propertyKey] || [];
-        const newValue = currentValue.filter((_: any, i: number) => i !== index);
+        const newValue = (currentValue as ComponentProperties[string][]).filter((_: ComponentProperties[string], i: number) => i !== index);
         handlePropertyUpdate(propertyKey, newValue);
       },
-      onItemUpdate: (index: number, itemValue: any) => {
+      onItemUpdate: (index: number, itemValue: ComponentProperties[string]) => {
         if (!selectedComponent) return;
         const currentValue = [...(selectedComponent.properties[propertyKey] || [])];
         currentValue[index] = itemValue;
@@ -334,11 +334,11 @@ const OptimizedPropertyPanel = memo<PropertyPanelProps>(({
   }, [selectedComponent, handlePropertyUpdate]);
 
   // Memoized property input renderer
-  const renderPropertyInput = useCallback((property: PropertyDefinition, value: any) => {
+  const renderPropertyInput = useCallback((property: PropertyDefinition, value: ComponentProperties[string]) => {
     const commonProps = {
       property,
       value,
-      onChange: (newValue: any) => handlePropertyUpdate(property.key, newValue)
+      onChange: (newValue: ComponentProperties[string]) => handlePropertyUpdate(property.key, newValue)
     };
 
     switch (property.type) {

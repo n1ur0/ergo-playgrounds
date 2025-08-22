@@ -14,7 +14,7 @@ export interface ErrorDetails {
   url: string;
   userId?: string;
   sessionId?: string;
-  additionalInfo?: Record<string, any>;
+  additionalInfo?: Record<string, unknown>;
 }
 
 // Error boundary state interface
@@ -146,7 +146,7 @@ function determineErrorSeverity(error: Error): ErrorSeverity {
 function createErrorDetails(
   error: Error, 
   errorInfo: ErrorInfo, 
-  additionalInfo?: Record<string, any>
+  additionalInfo?: Record<string, unknown>
 ): ErrorDetails {
   return {
     message: error.message,
@@ -390,7 +390,7 @@ export function useErrorHandler() {
 
   const reportError = React.useCallback((
     error: Error | string,
-    additionalInfo?: Record<string, any>
+    additionalInfo?: Record<string, unknown>
   ) => {
     const errorObj = typeof error === 'string' ? new Error(error) : error;
     const errorId = generateErrorId();

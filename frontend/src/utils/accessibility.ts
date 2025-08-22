@@ -2,6 +2,39 @@
 
 import React from 'react';
 
+// Type definitions for accessibility
+export interface AriaAttributes {
+  'aria-label'?: string;
+  'aria-labelledby'?: string;
+  'aria-describedby'?: string;
+  'aria-expanded'?: boolean;
+  'aria-selected'?: boolean;
+  'aria-checked'?: boolean | 'mixed';
+  'aria-disabled'?: boolean;
+  'aria-hidden'?: boolean;
+  'aria-pressed'?: boolean | 'mixed';
+  'aria-current'?: boolean | 'page' | 'step' | 'location' | 'date' | 'time';
+  'aria-invalid'?: boolean | 'grammar' | 'spelling';
+  'aria-required'?: boolean;
+  'aria-readonly'?: boolean;
+  'aria-busy'?: boolean;
+  'aria-live'?: 'off' | 'polite' | 'assertive';
+  'aria-atomic'?: boolean;
+  'aria-relevant'?: 'additions' | 'removals' | 'text' | 'all';
+  'aria-controls'?: string;
+  'aria-owns'?: string;
+  'aria-haspopup'?: boolean | 'false' | 'true' | 'menu' | 'listbox' | 'tree' | 'grid' | 'dialog';
+  'aria-orientation'?: 'horizontal' | 'vertical';
+  'aria-multiselectable'?: boolean;
+  'aria-level'?: number;
+  'aria-posinset'?: number;
+  'aria-setsize'?: number;
+  'aria-valuemin'?: number;
+  'aria-valuemax'?: number;
+  'aria-valuenow'?: number;
+  'aria-valuetext'?: string;
+}
+
 // ARIA attributes and roles
 export const ARIA_ROLES = {
   BUTTON: 'button',
@@ -235,7 +268,7 @@ export const KeyboardHelper = {
       this.KEYS.ARROW_RIGHT,
       this.KEYS.HOME,
       this.KEYS.END
-    ].includes(event.key as any);
+    ].includes(event.key);
   },
 
   handleMenuKeyDown(
@@ -417,18 +450,18 @@ export function useAccessibilityPreferences() {
 }
 
 // Component enhancers for accessibility
-export function withA11yProps<T extends Record<string, any>>(
+export function withA11yProps<T extends Record<string, unknown>>(
   Component: React.ComponentType<T>
-): React.ComponentType<T & { a11yProps?: Record<string, any> }> {
-  return React.forwardRef<any, T & { a11yProps?: Record<string, any> }>((props, ref) => {
+): React.ComponentType<T & { a11yProps?: Record<string, unknown> }> {
+  return React.forwardRef<HTMLElement, T & { a11yProps?: Record<string, unknown> }>((props, ref) => {
     const { a11yProps, ...restProps } = props;
     return React.createElement(Component, { ref, ...restProps, ...a11yProps });
-  }) as React.ComponentType<T & { a11yProps?: Record<string, any> }>;
+  }) as React.ComponentType<T & { a11yProps?: Record<string, unknown> }>;
 }
 
 // Validation helpers
 export const A11yValidator = {
-  validateButton(props: Record<string, any>): string[] {
+  validateButton(props: Record<string, unknown>): string[] {
     const warnings = [];
     
     if (!props['aria-label'] && !props.children) {
@@ -442,7 +475,7 @@ export const A11yValidator = {
     return warnings;
   },
 
-  validateForm(props: Record<string, any>): string[] {
+  validateForm(props: Record<string, unknown>): string[] {
     const warnings = [];
     
     if (!props['aria-label'] && !props['aria-labelledby']) {
@@ -452,7 +485,7 @@ export const A11yValidator = {
     return warnings;
   },
 
-  validateInput(props: Record<string, any>): string[] {
+  validateInput(props: Record<string, unknown>): string[] {
     const warnings = [];
     
     if (!props['aria-label'] && !props['aria-labelledby'] && !props.id) {

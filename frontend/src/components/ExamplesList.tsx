@@ -7,7 +7,16 @@ interface ExamplesListProps {
   onSelectExample: (example: string) => void;
 }
 
-const examples = [
+interface Example {
+  id: string;
+  title: string;
+  description: string;
+  difficulty: string;
+  category: string;
+  isSpecial?: boolean;
+}
+
+const examples: Example[] = [
   {
     id: 'contractDesigner',
     title: '🎨 Contract Designer',
@@ -98,7 +107,7 @@ const ExamplesList: React.FC<ExamplesListProps> = ({ selectedExample, onSelectEx
         {examples.map((example) => (
           <div
             key={example.id}
-            className={`example-card ${selectedExample === example.id ? 'selected' : ''} ${(example as any).isSpecial ? 'special' : ''}`}
+            className={`example-card ${selectedExample === example.id ? 'selected' : ''} ${example.isSpecial ? 'special' : ''}`}
             onClick={() => onSelectExample(example.id)}
           >
             <div className="example-header">
