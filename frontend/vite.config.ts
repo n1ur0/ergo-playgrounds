@@ -38,9 +38,4 @@ export default defineConfig({
     devSourcemap: false
   },
   // Note: experimental features disabled for compatibility
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: './src/test/setup.ts',
-  }
 })
