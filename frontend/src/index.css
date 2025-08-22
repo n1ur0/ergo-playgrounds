@@ -3,13 +3,124 @@
 }
 
 :root {
-  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
+  /* Font Stack */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Monaco', monospace;
+  --font-display: 'Cal Sans', 'Inter', sans-serif;
+  
+  /* Type Scale - Responsive with clamp() */
+  --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.8rem);
+  --text-sm: clamp(0.875rem, 0.8rem + 0.375vw, 0.95rem);
+  --text-base: clamp(1rem, 0.9rem + 0.5vw, 1.125rem);
+  --text-lg: clamp(1.125rem, 1rem + 0.625vw, 1.3rem);
+  --text-xl: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem);
+  --text-2xl: clamp(1.5rem, 1.3rem + 1vw, 1.875rem);
+  --text-3xl: clamp(1.875rem, 1.6rem + 1.375vw, 2.25rem);
+  
+  /* Color System - Ergo Theme */
+  /* Primary Palette - Ergo Blue */
+  --color-primary-50: hsl(210, 100%, 95%);
+  --color-primary-100: hsl(210, 100%, 90%);
+  --color-primary-200: hsl(210, 100%, 80%);
+  --color-primary-300: hsl(210, 100%, 70%);
+  --color-primary-400: hsl(210, 100%, 60%);
+  --color-primary-500: hsl(210, 100%, 50%);
+  --color-primary-600: hsl(210, 100%, 40%);
+  --color-primary-700: hsl(210, 100%, 30%);
+  --color-primary-800: hsl(210, 100%, 20%);
+  --color-primary-900: hsl(210, 100%, 10%);
+  
+  /* Secondary Palette - Complementary Orange */
+  --color-secondary-400: hsl(38, 92%, 50%);
+  --color-secondary-500: hsl(38, 92%, 40%);
+  --color-secondary-600: hsl(38, 92%, 30%);
+  
+  /* Semantic Colors */
+  --color-success-400: hsl(142, 76%, 46%);
+  --color-success-500: hsl(142, 76%, 36%);
+  --color-success-600: hsl(142, 76%, 26%);
+  
+  --color-warning-400: hsl(38, 92%, 60%);
+  --color-warning-500: hsl(38, 92%, 50%);
+  --color-warning-600: hsl(38, 92%, 40%);
+  
+  --color-error-400: hsl(0, 84%, 70%);
+  --color-error-500: hsl(0, 84%, 60%);
+  --color-error-600: hsl(0, 84%, 50%);
+  
+  --color-info-400: hsl(210, 100%, 70%);
+  --color-info-500: hsl(210, 100%, 60%);
+  --color-info-600: hsl(210, 100%, 50%);
+  
+  /* Neutral Palette - Dark Theme */
+  --color-background: hsl(220, 13%, 9%);
+  --color-surface: hsl(220, 13%, 14%);
+  --color-surface-variant: hsl(220, 13%, 18%);
+  --color-outline: hsl(220, 13%, 30%);
+  --color-outline-variant: hsl(220, 13%, 25%);
+  
+  --color-on-background: hsl(220, 13%, 95%);
+  --color-on-surface: hsl(220, 13%, 90%);
+  --color-on-surface-variant: hsl(220, 13%, 75%);
+  
+  /* Educational Context Colors */
+  --color-concept: hsl(260, 60%, 65%);
+  --color-example: hsl(120, 60%, 65%);
+  --color-quiz: hsl(45, 60%, 65%);
+  --color-achievement: hsl(300, 60%, 65%);
+  
+  /* Spacing Scale */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+  --space-4xl: 6rem;
+  
+  /* Border Radius Scale */
+  --radius-xs: 0.125rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  
+  /* Elevation System */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  
+  /* Z-index Scale */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+  --z-toast: 1080;
+  
+  /* Animation */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Layout Breakpoints */
+  --breakpoint-mobile: 320px;
+  --breakpoint-tablet: 768px;
+  --breakpoint-desktop: 1024px;
+  --breakpoint-large: 1440px;
+  
+  /* Typography */
+  font-family: var(--font-sans);
+  line-height: 1.6;
   font-weight: 400;
-
   color-scheme: dark;
-  color: rgba(255, 255, 255, 0.9);
-  background-color: #0f1419;
+  color: var(--color-on-background);
+  background-color: var(--color-background);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -43,12 +154,57 @@ input, textarea {
 }
 
 a {
-  color: #64b5f6;
+  color: var(--color-primary-400);
   text-decoration: none;
+  transition: var(--transition-fast);
 }
 
 a:hover {
-  color: #42a5f5;
+  color: var(--color-primary-300);
+}
+
+/* Modern Focus Management */
+.focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
+}
+
+/* High Contrast Support */
+@media (prefers-contrast: high) {
+  :root {
+    --color-on-background: #ffffff;
+    --color-on-surface: #ffffff;
+    --color-background: #000000;
+    --color-surface: #111111;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Glass Morphism Effects */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-xl);
+}
+
+.interactive-element {
+  transition: var(--transition-normal);
+  transform-origin: center;
+}
+
+.interactive-element:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: var(--shadow-lg);
 }
 
 /* Scrollbar styling for webkit browsers */

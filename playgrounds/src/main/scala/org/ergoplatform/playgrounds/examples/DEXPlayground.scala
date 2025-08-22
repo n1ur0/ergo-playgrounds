@@ -5,7 +5,8 @@ object DEXPlayground {
   import org.ergoplatform.playgroundenv.utils.ErgoScriptCompiler
   import org.ergoplatform.playground._
 
-  def buyerContract(
+  // Enhanced buyer contract with multi-register UTXO linking
+  def enhancedBuyerContract(
     buyerParty: Party,
     token: TokenInfo,
     tokenPrice: Long,
@@ -21,9 +22,45 @@ object DEXPlayground {
 
       val tokenPrice = $tokenPrice
       val dexFeePerToken = $dexFeePerToken
+      
+      // Enhanced validation with multi-register pattern
+      def validateEnhancedBox(box: Box): Boolean = {
+        val hasValidParent = box.R4[Coll[Byte]].isDefined && box.R4[Coll[Byte]].get == SELF.id
+        val hasValidRoot = box.R5[Coll[Byte]].isDefined && {
+          val rootId = box.R5[Coll[Byte]].get
+          rootId == SELF.R5[Coll[Byte]].getOrElse(SELF.id)
+        }
+        val hasValidSequence = box.R6[Long].isDefined && {
+          val currentSeq = SELF.R6[Long].getOrElse(0L)
+          box.R6[Long].get == currentSeq + 1
+        }
+        val hasValidState = box.R7[Coll[Long]].isDefined && {
+          val stateData = box.R7[Coll[Long]].get
+          val status = stateData(0)
+          val fillAmount = stateData(1) 
+          val totalAmount = stateData(2)
+          status >= 0 && status <= 3 && fillAmount > 0 && fillAmount <= totalAmount
+        }
+        
+        hasValidParent && hasValidRoot && hasValidSequence && hasValidState
+      }
+      
+      // Legacy validation for backward compatibility
+      def validateLegacyBox(box: Box): Boolean = {
+        box.R4[Coll[Byte]].isDefined && box.R4[Coll[Byte]].get == SELF.id
+      }
+      
+      // Validate box using enhanced pattern if available, otherwise legacy
+      def validateBox(box: Box): Boolean = {
+        if (box.R5[Coll[Byte]].isDefined) {
+          validateEnhancedBox(box)
+        } else {
+          validateLegacyBox(box)
+        }
+      }
 
       val returnBox = OUTPUTS.filter { (b: Box) => 
-        b.R4[Coll[Byte]].isDefined && b.R4[Coll[Byte]].get == SELF.id && b.propositionBytes == buyerPk.propBytes
+        validateBox(b) && b.propositionBytes == buyerPk.propBytes
       }(0)
 
       val returnTokenData = returnBox.tokens(0)
@@ -34,7 +71,7 @@ object DEXPlayground {
       val expectedDexFee = dexFeePerToken * returnTokenAmount
       
       val foundNewOrderBoxes = OUTPUTS.filter { (b: Box) => 
-        b.R4[Coll[Byte]].isDefined && b.R4[Coll[Byte]].get == SELF.id && b.propositionBytes == SELF.propositionBytes
+        validateBox(b) && b.propositionBytes == SELF.propositionBytes
       }
 
       val coinsSecured = (SELF.value - expectedDexFee) == maxReturnTokenErgValue || {
@@ -53,8 +90,17 @@ object DEXPlayground {
 
     ErgoScriptCompiler.compile(buyerContractEnv, buyerScript)
   }
+  
+  // Legacy buyer contract for backward compatibility
+  def buyerContract(
+    buyerParty: Party,
+    token: TokenInfo,
+    tokenPrice: Long,
+    dexFeePerToken: Long
+  ) = enhancedBuyerContract(buyerParty, token, tokenPrice, dexFeePerToken)
 
-  def sellerOrderContract(
+  // Enhanced seller contract with multi-register UTXO linking
+  def enhancedSellerContract(
     sellerParty: Party,
     token: TokenInfo,
     tokenPrice: Long,
@@ -71,13 +117,49 @@ object DEXPlayground {
       val dexFeePerToken = $dexFeePerToken
 
       val selfTokenAmount = SELF.tokens(0)._2
+      
+      // Enhanced validation with multi-register pattern
+      def validateEnhancedBox(box: Box): Boolean = {
+        val hasValidParent = box.R4[Coll[Byte]].isDefined && box.R4[Coll[Byte]].get == SELF.id
+        val hasValidRoot = box.R5[Coll[Byte]].isDefined && {
+          val rootId = box.R5[Coll[Byte]].get
+          rootId == SELF.R5[Coll[Byte]].getOrElse(SELF.id)
+        }
+        val hasValidSequence = box.R6[Long].isDefined && {
+          val currentSeq = SELF.R6[Long].getOrElse(0L)
+          box.R6[Long].get == currentSeq + 1
+        }
+        val hasValidState = box.R7[Coll[Long]].isDefined && {
+          val stateData = box.R7[Coll[Long]].get
+          val status = stateData(0)
+          val fillAmount = stateData(1) 
+          val totalAmount = stateData(2)
+          status >= 0 && status <= 3 && fillAmount > 0 && fillAmount <= totalAmount
+        }
+        
+        hasValidParent && hasValidRoot && hasValidSequence && hasValidState
+      }
+      
+      // Legacy validation for backward compatibility
+      def validateLegacyBox(box: Box): Boolean = {
+        box.R4[Coll[Byte]].isDefined && box.R4[Coll[Byte]].get == SELF.id
+      }
+      
+      // Validate box using enhanced pattern if available, otherwise legacy
+      def validateBox(box: Box): Boolean = {
+        if (box.R5[Coll[Byte]].isDefined) {
+          validateEnhancedBox(box)
+        } else {
+          validateLegacyBox(box)
+        }
+      }
 
       val returnBox = OUTPUTS.filter { (b: Box) => 
-        b.R4[Coll[Byte]].isDefined && b.R4[Coll[Byte]].get == SELF.id && b.propositionBytes == sellerPk.propBytes
+        validateBox(b) && b.propositionBytes == sellerPk.propBytes
       }(0)
       
       val foundNewOrderBoxes = OUTPUTS.filter { (b: Box) => 
-        b.R4[Coll[Byte]].isDefined && b.R4[Coll[Byte]].get == SELF.id && b.propositionBytes == SELF.propositionBytes
+        validateBox(b) && b.propositionBytes == SELF.propositionBytes
       }
 
       (returnBox.value == selfTokenAmount * tokenPrice) || {
@@ -99,6 +181,69 @@ object DEXPlayground {
       }""".stripMargin
 
     ErgoScriptCompiler.compile(sellerContractEnv, sellerScript)
+  }
+  
+  // Legacy seller contract for backward compatibility
+  def sellerOrderContract(
+    sellerParty: Party,
+    token: TokenInfo,
+    tokenPrice: Long,
+    dexFeePerToken: Long
+  ) = enhancedSellerContract(sellerParty, token, tokenPrice, dexFeePerToken)
+  
+  // Order states for enhanced pattern
+  object OrderState {
+    val ACTIVE = 0L
+    val PARTIAL = 1L
+    val COMPLETE = 2L
+    val CANCELLED = 3L
+  }
+  
+  // Helper function to create enhanced box with full register set
+  def createEnhancedBox(
+    value: Long,
+    token: Option[(TokenInfo, Long)] = None,
+    parentBoxId: Option[Array[Byte]] = None,
+    rootOrderId: Option[Array[Byte]] = None,
+    sequenceNumber: Long = 0L,
+    status: Long = OrderState.ACTIVE,
+    fillAmount: Long = 0L,
+    totalAmount: Long = 0L,
+    timestamp: Long = System.currentTimeMillis(),
+    script: Contract
+  ): Box = {
+    
+    val baseBox = token match {
+      case Some((tokenInfo, amount)) => Box(
+        value = value,
+        token = (tokenInfo -> amount),
+        script = script
+      )
+      case None => Box(value = value, script = script)
+    }
+    
+    // Add enhanced registers if parent is specified (indicating chained transaction)
+    parentBoxId match {
+      case Some(parentId) =>
+        val rootId = rootOrderId.getOrElse(parentId) // Use parent as root if not specified
+        baseBox.copy(
+          registers = Map(
+            R4 -> parentId,
+            R5 -> rootId,
+            R6 -> sequenceNumber,
+            R7 -> Coll(status, fillAmount, totalAmount, timestamp)
+          )
+        )
+      case None =>
+        // Initial order box - set itself as root
+        baseBox.copy(
+          registers = Map(
+            R5 -> baseBox.id, // Will be replaced with actual ID after transaction
+            R6 -> 0L,
+            R7 -> Coll(OrderState.ACTIVE, 0L, totalAmount, timestamp)
+          )
+        )
+    }
   }
 
   def swapScenario = {
@@ -453,7 +598,196 @@ object DEXPlayground {
     sellerParty.printUnspentAssets()
   }
 
+  // Enhanced swap scenario demonstrating improved UTXO connection patterns
+  def enhancedSwapScenario = {
+
+    val blockchainSim = newBlockChainSimulationScenario(
+      "EnhancedSwapWithChainTracking"
+    )
+
+    val token = blockchainSim.newToken("TKN")
+
+    val buyerParty          = blockchainSim.newParty("buyer")
+    val buyerBidTokenAmount = 100L
+    val buyersBidTokenPrice = 5000000L
+    val buyersBidNanoErgs   = buyersBidTokenPrice * buyerBidTokenAmount
+    val buyerDexFee         = 10000000L
+    val buyerDexFeePerToken = buyerDexFee / buyerBidTokenAmount
+    val buyOrderTxFee       = MinTxFee
+    val buyerSwapBoxValue   = MinErg
+
+    buyerParty.generateUnspentBoxes(
+      toSpend = buyersBidNanoErgs + buyOrderTxFee + buyerDexFee
+    )
+
+    val sellerParty          = blockchainSim.newParty("seller")
+    val sellerAskTokenPrice  = 5000000L
+    val sellerAskTokenAmount = 100L
+    val sellerDexFee         = 10000000L
+    val sellerDexFeePerToken = sellerDexFee / sellerAskTokenAmount
+    val sellOrderTxFee       = MinTxFee
+
+    sellerParty.generateUnspentBoxes(
+      toSpend       = sellOrderTxFee + sellerDexFee,
+      tokensToSpend = List(token -> sellerAskTokenAmount)
+    )
+
+    println("=== Enhanced DEX Scenario with Chain Tracking ===")
+    sellerParty.printUnspentAssets()
+    buyerParty.printUnspentAssets()
+
+    // Create enhanced buy order with initial state
+    val buyOrderContract = enhancedBuyerContract(
+      buyerParty,
+      token,
+      buyersBidTokenPrice,
+      buyerDexFeePerToken
+    )
+
+    val buyOrderBoxValue = buyersBidTokenPrice * buyerBidTokenAmount + buyerDexFee
+    val buyOrderBox = Box(
+      value = buyOrderBoxValue, 
+      script = buyOrderContract,
+      registers = Map(
+        R5 -> Array.fill(32)(0.toByte), // Will be set to actual box ID  
+        R6 -> 0L,
+        R7 -> Coll(OrderState.ACTIVE, 0L, buyerBidTokenAmount, System.currentTimeMillis())
+      )
+    )
+
+    val buyOrderTransaction = Transaction(
+      inputs       = buyerParty.selectUnspentBoxes(toSpend = buyOrderBoxValue + buyOrderTxFee),
+      outputs      = List(buyOrderBox),
+      fee          = buyOrderTxFee,
+      sendChangeTo = buyerParty.wallet.getAddress
+    )
+
+    val buyOrderTxSigned = buyerParty.wallet.sign(buyOrderTransaction)
+    blockchainSim.send(buyOrderTxSigned)
+
+    // Create enhanced sell order with initial state
+    val sellOrderContract = enhancedSellerContract(
+      sellerParty,
+      token,
+      sellerAskTokenPrice,
+      sellerDexFeePerToken
+    )
+
+    val sellOrderBox = Box(
+      value  = sellerDexFee,
+      token  = (token -> sellerAskTokenAmount),
+      script = sellOrderContract,
+      registers = Map(
+        R5 -> Array.fill(32)(0.toByte), // Will be set to actual box ID
+        R6 -> 0L,
+        R7 -> Coll(OrderState.ACTIVE, 0L, sellerAskTokenAmount, System.currentTimeMillis())
+      )
+    )
+
+    val sellOrderTx = Transaction(
+      inputs       = sellerParty.selectUnspentBoxes(
+        toSpend       = sellerDexFee + sellOrderTxFee,
+        tokensToSpend = List(token -> sellerAskTokenAmount)
+      ),
+      outputs      = List(sellOrderBox),
+      fee          = sellOrderTxFee,
+      sendChangeTo = sellerParty.wallet.getAddress
+    )
+
+    val sellOrderTxSigned = sellerParty.wallet.sign(sellOrderTx)
+    blockchainSim.send(sellOrderTxSigned)
+
+    println("=== Initial Orders Created ===")
+
+    // Partial fill with enhanced chain tracking
+    val sellerTokenAmountSold = sellerAskTokenAmount / 2
+    val sellerDexFeeForPartialMatch = sellerDexFeePerToken * sellerTokenAmountSold
+    
+    val sellerOutBoxPartialMatch = Box(
+      value    = sellerTokenAmountSold * sellerAskTokenPrice,
+      registers = Map(
+        R4 -> sellOrderTxSigned.outputs(0).id,
+        R5 -> sellOrderTxSigned.outputs(0).id, // Root order reference
+        R6 -> 1L, // First transaction in chain
+        R7 -> Coll(OrderState.COMPLETE, sellerTokenAmountSold, sellerAskTokenAmount, System.currentTimeMillis())
+      ),
+      script   = contract(sellerParty.wallet.getAddress.pubKey)
+    )
+
+    val newSellOrderBox = Box(
+      value    = sellOrderBox.value - sellerDexFeeForPartialMatch,
+      token    = (token -> (sellerAskTokenAmount - sellerTokenAmountSold)),
+      registers = Map(
+        R4 -> sellOrderTxSigned.outputs(0).id,
+        R5 -> sellOrderTxSigned.outputs(0).id, // Root order reference  
+        R6 -> 1L, // First transaction in chain
+        R7 -> Coll(OrderState.PARTIAL, sellerTokenAmountSold, sellerAskTokenAmount, System.currentTimeMillis())
+      ),
+      script   = sellOrderContract
+    )
+
+    val buyerTokenAmountBought = buyerBidTokenAmount / 2
+    val buyerDexFeeForPartialMatch = buyerDexFeePerToken * buyerTokenAmountBought
+    
+    val buyerOutBoxPartialMatch = Box(
+      value    = buyerSwapBoxValue,
+      token    = (token -> buyerTokenAmountBought),
+      registers = Map(
+        R4 -> buyOrderTxSigned.outputs(0).id,
+        R5 -> buyOrderTxSigned.outputs(0).id, // Root order reference
+        R6 -> 1L, // First transaction in chain  
+        R7 -> Coll(OrderState.COMPLETE, buyerTokenAmountBought, buyerBidTokenAmount, System.currentTimeMillis())
+      ),
+      script   = contract(buyerParty.wallet.getAddress.pubKey)
+    )
+
+    val newBuyOrderBoxValue = buyOrderBox.value - buyerTokenAmountBought * buyersBidTokenPrice - buyerDexFeeForPartialMatch
+    val newBuyOrderBox = Box(
+      value    = newBuyOrderBoxValue,
+      registers = Map(
+        R4 -> buyOrderTxSigned.outputs(0).id,
+        R5 -> buyOrderTxSigned.outputs(0).id, // Root order reference
+        R6 -> 1L, // First transaction in chain
+        R7 -> Coll(OrderState.PARTIAL, buyerTokenAmountBought, buyerBidTokenAmount, System.currentTimeMillis())
+      ),
+      script   = buyOrderContract
+    )
+
+    val dexParty = blockchainSim.newParty("DEX")
+    val swapTxFee = MinTxFee
+    val dexFeeForPartialMatching = sellerDexFeeForPartialMatch + buyerDexFeeForPartialMatch - swapTxFee - buyerSwapBoxValue
+
+    val dexFeeOutBoxForPartialMatching = Box(
+      value  = dexFeeForPartialMatching,
+      script = contract(dexParty.wallet.getAddress.pubKey)
+    )
+
+    val swapTxPartialMatching = Transaction(
+      inputs = List(buyOrderTxSigned.outputs(0), sellOrderTxSigned.outputs(0)),
+      outputs = List(
+        buyerOutBoxPartialMatch,
+        newBuyOrderBox,
+        sellerOutBoxPartialMatch,
+        newSellOrderBox,
+        dexFeeOutBoxForPartialMatching
+      ),
+      fee = swapTxFee
+    )
+
+    val swapTxPartialMatchingSigned = dexParty.wallet.sign(swapTxPartialMatching)
+    blockchainSim.send(swapTxPartialMatchingSigned)
+
+    println("=== Partial Fill Complete - Chain Tracking Demonstrated ===")
+    println(s"Buyer chain: Original -> Partial (seq=1)")
+    println(s"Seller chain: Original -> Partial (seq=1)")
+    
+    sellerParty.printUnspentAssets()
+    buyerParty.printUnspentAssets()
+    dexParty.printUnspentAssets()
+  }
+
   swapScenario
+  enhancedSwapScenario
   cancelSellOrderScenario
   cancelBuyOrderScenario
 }

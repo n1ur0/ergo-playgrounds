@@ -126,7 +126,7 @@ const SimulationResults: React.FC<SimulationResultsProps> = ({ result, isRunning
               Transaction Flow
             </h4>
             <div className="transactions-list">
-              {result.transactions.map((tx, index) => (
+              {result.transactions.map((tx) => (
                 <div key={tx.id} className={`transaction-item ${tx.status}`}>
                   <div className="tx-icon">{getTransactionIcon(tx.type)}</div>
                   <div className="tx-details">
