@@ -6,14 +6,32 @@ import { usePlaygroundIntegration, usePlaygroundConnection } from '../usePlaygro
 const mockFetch = vi.fn()
 global.fetch = mockFetch
 
+// Mock timers
+vi.mock('react', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    useEffect: vi.fn((fn) => fn()),
+  }
+})
+
 describe('usePlaygroundIntegration', () => {
   beforeEach(() => {
+    vi.useFakeTimers()
     vi.clearAllMocks()
     mockFetch.mockClear()
+    
+    // Default successful mock
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ status: 'healthy' })
+    })
   })
 
   afterEach(() => {
     vi.clearAllTimers()
+    vi.useRealTimers()
+    vi.clearAllMocks()
   })
 
   describe('Initialization', () => {
@@ -47,6 +65,12 @@ describe('usePlaygroundIntegration', () => {
       mockFetch.mockRejectedValueOnce(new Error('Network error'))
 
       const { result } = renderHook(() => usePlaygroundIntegration())
+
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 100))
+      })
+
+      expect(result.current.isConnected).toBe(false)
 
       await act(async () => {
         await new Promise(resolve => setTimeout(resolve, 0))
