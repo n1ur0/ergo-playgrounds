@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, DollarSign, Key, Clock, Users } from 'lucide-react';
+import { Settings, DollarSign, Key, Clock, Users } from '../utils/icons';
 import './ContractParameters.css';
 
 type ParameterValue = string | number | boolean;

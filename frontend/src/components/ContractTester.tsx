@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Code, Play, RefreshCw, CheckCircle, XCircle, Settings, Users, Network, BookOpen } from 'lucide-react';
+import { Code, Play, RefreshCw, CheckCircle, XCircle, Settings, Users, Network, BookOpen } from '../utils/icons';
 import CodeEditor from './CodeEditor';
 import SimulationResults from './SimulationResults';
 import ContractParameters from './ContractParameters';
 // import UTXOVisualization from './visualization/UTXOVisualization';
-import ContractEducation from './education/ContractEducation';
-import ContractDesigner from './designer/ContractDesigner';
+import { lazy, Suspense } from 'react';
+
+// Lazy load heavy components
+const ContractEducation = lazy(() => import('./education/ContractEducation'));
+const ContractDesigner = lazy(() => import('./designer/LazyContractDesigner'));
 import './ContractTester.css';
 
 interface ContractTesterProps {
@@ -2247,7 +2250,11 @@ const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample }) => {
 
   // Handle contract designer mode
   if (selectedExample === 'contractDesigner') {
-    return <ContractDesigner className="contract-designer-full" />;
+    return (
+      <Suspense fallback={<div className="loading-state">Loading Contract Designer...</div>}>
+        <ContractDesigner className="contract-designer-full" />
+      </Suspense>
+    );
   }
 
   return (
@@ -2323,9 +2330,11 @@ const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample }) => {
 
       <div className="contract-content">
         {activeTab === 'learn' && (
-          <ContractEducation 
-            selectedExample={selectedExample}
-          />
+          <Suspense fallback={<div className="loading-state">Loading Educational Content...</div>}>
+            <ContractEducation 
+              selectedExample={selectedExample}
+            />
+          </Suspense>
         )}
         
         {activeTab === 'code' && (
