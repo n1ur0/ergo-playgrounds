@@ -26,7 +26,7 @@ export const ergoScriptLanguage = {
   'number': /\b0x[\da-f]+\b|(?:\b\d+(?:\.\d*)?|\B\.\d+)(?:e[+-]?\d+)?[fl]?\b/i,
   'boolean': /\b(?:true|false)\b/,
   'function': /\b\w+(?=\s*\()/,
-  'operator': /[<>]=?|[!=]=?|&&|\|\||[+\-*\/%^&|]=?|\?:|<<=?|>>>?=?|~/,
+  'operator': /[<>]=?|[!=]=?|&&|\|\||[+\-*/%^&|]=?|\?:|<<=?|>>>?=?|~/,
   'punctuation': /[{}[\];(),.:]/,
   'lambda': /{[^}]*=>/,
   'property': /\.\w+/

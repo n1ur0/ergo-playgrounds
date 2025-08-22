@@ -9,6 +9,14 @@ interface ExamplesListProps {
 
 const examples = [
   {
+    id: 'contractDesigner',
+    title: '🎨 Contract Designer',
+    description: 'Create custom smart contracts with drag-and-drop interface',
+    difficulty: 'Interactive',
+    category: 'Designer',
+    isSpecial: true
+  },
+  {
     id: 'simpleSend',
     title: 'Simple Send',
     description: 'Basic transaction between two parties',
@@ -68,6 +76,7 @@ const examples = [
 
 const getDifficultyColor = (difficulty: string) => {
   switch (difficulty) {
+    case 'Interactive': return '#2196f3';
     case 'Starter': return '#4caf50';
     case 'Beginner': return '#8bc34a';
     case 'Intermediate': return '#ff9800';
@@ -89,7 +98,7 @@ const ExamplesList: React.FC<ExamplesListProps> = ({ selectedExample, onSelectEx
         {examples.map((example) => (
           <div
             key={example.id}
-            className={`example-card ${selectedExample === example.id ? 'selected' : ''}`}
+            className={`example-card ${selectedExample === example.id ? 'selected' : ''} ${(example as any).isSpecial ? 'special' : ''}`}
             onClick={() => onSelectExample(example.id)}
           >
             <div className="example-header">

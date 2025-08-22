@@ -3,12 +3,14 @@ import { Code, Play, RefreshCw, CheckCircle, XCircle, Settings, Users, Network, 
 import CodeEditor from './CodeEditor';
 import SimulationResults from './SimulationResults';
 import ContractParameters from './ContractParameters';
-import UTXOVisualization from './visualization/UTXOVisualization';
+// import UTXOVisualization from './visualization/UTXOVisualization';
 import ContractEducation from './education/ContractEducation';
+import ContractDesigner from './designer/ContractDesigner';
 import './ContractTester.css';
 
 interface ContractTesterProps {
   selectedExample: string | null;
+  layout?: any; // Optional layout prop for responsive behavior
 }
 
 interface SimulationResult {
@@ -2243,6 +2245,11 @@ const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample }) => {
     );
   }
 
+  // Handle contract designer mode
+  if (selectedExample === 'contractDesigner') {
+    return <ContractDesigner className="contract-designer-full" />;
+  }
+
   return (
     <div className="contract-tester">
       <div className="contract-header">
@@ -2345,12 +2352,10 @@ const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample }) => {
         )}
         
         {activeTab === 'diagram' && (
-          <UTXOVisualization
-            contractCode={code}
-            isRunning={isRunning}
-            executionStep={simulationResult ? simulationResult.transactions.length : 0}
-            maxSteps={simulationResult ? simulationResult.transactions.length : 0}
-          />
+          <div className="coming-soon">
+            <h3>UTXO Visualization</h3>
+            <p>This feature is temporarily disabled while fixing type issues.</p>
+          </div>
         )}
       </div>
     </div>

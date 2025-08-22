@@ -2,9 +2,11 @@ import React from 'react';
 import { Settings, DollarSign, Key, Clock, Users } from 'lucide-react';
 import './ContractParameters.css';
 
+type ParameterValue = string | number | boolean;
+
 interface ContractParametersProps {
-  parameters: Record<string, any>;
-  onChange: (parameters: Record<string, any>) => void;
+  parameters: Record<string, ParameterValue>;
+  onChange: (parameters: Record<string, ParameterValue>) => void;
   contractType: string;
 }
 
@@ -61,7 +63,7 @@ const ContractParameters: React.FC<ContractParametersProps> = ({
 }) => {
   const config = parameterConfigs[contractType as keyof typeof parameterConfigs] || [];
 
-  const handleParameterChange = (key: string, value: any) => {
+  const handleParameterChange = (key: string, value: ParameterValue) => {
     onChange({
       ...parameters,
       [key]: value
@@ -69,7 +71,7 @@ const ContractParameters: React.FC<ContractParametersProps> = ({
   };
 
   const resetToDefaults = () => {
-    const defaultParams: Record<string, any> = {};
+    const defaultParams: Record<string, ParameterValue> = {};
     config.forEach(param => {
       defaultParams[param.key] = param.defaultValue;
     });
@@ -81,7 +83,7 @@ const ContractParameters: React.FC<ContractParametersProps> = ({
     if (Object.keys(parameters).length === 0 && config.length > 0) {
       resetToDefaults();
     }
-  }, [contractType]);
+  }, [contractType, parameters, config.length, resetToDefaults]);
 
   return (
     <div className="contract-parameters">
@@ -115,14 +117,14 @@ const ContractParameters: React.FC<ContractParametersProps> = ({
                   {param.type === 'number' ? (
                     <input
                       type="number"
-                      value={parameters[param.key] || param.defaultValue}
+                      value={String(parameters[param.key] ?? param.defaultValue ?? '')}
                       onChange={(e) => handleParameterChange(param.key, parseInt(e.target.value) || 0)}
                       className="input-field number-input"
                     />
                   ) : (
                     <input
                       type="text"
-                      value={parameters[param.key] || param.defaultValue}
+                      value={String(parameters[param.key] ?? param.defaultValue ?? '')}
                       onChange={(e) => handleParameterChange(param.key, e.target.value)}
                       className="input-field text-input"
                     />
@@ -131,7 +133,7 @@ const ContractParameters: React.FC<ContractParametersProps> = ({
 
                 {param.key.includes('Funds') && (
                   <div className="parameter-helper">
-                    ≈ {((parameters[param.key] || param.defaultValue) / 1000000000).toFixed(3)} ERG
+                    ≈ {(Number(parameters[param.key] ?? param.defaultValue ?? 0) / 1000000000).toFixed(3)} ERG
                   </div>
                 )}
               </div>

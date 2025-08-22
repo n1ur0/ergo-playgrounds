@@ -498,7 +498,7 @@ const StepByStepFlow: React.FC<StepByStepFlowProps> = ({
         </AnimatePresence>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .step-by-step-flow {
           background: linear-gradient(135deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.1));
           border-radius: 20px;
