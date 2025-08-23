@@ -1,9 +1,5 @@
 import React, { forwardRef, useCallback, useState, useRef } from 'react';
-<<<<<<< HEAD
-import type { ContractComponent, Connection, Position } from '../../types/contractDesigner';
-=======
 import type { ContractComponent, Connection, Position, ComponentType } from '../../types/contractDesigner';
->>>>>>> origin/develop
 import CanvasComponent from './CanvasComponent';
 import ConnectionLine from './ConnectionLine';
 import './DesignCanvas.css';
@@ -50,22 +46,14 @@ const DesignCanvas = forwardRef<HTMLDivElement, DesignCanvasProps>(({
   } | null>(null);
   const [connectionPreview, setConnectionPreview] = useState<Position | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
-<<<<<<< HEAD
-=======
   const [snapPoints, setSnapPoints] = useState<Position[]>([]);
   const [nearestSnapPoint, setNearestSnapPoint] = useState<Position | null>(null);
->>>>>>> origin/develop
   const [lastTouchTime, setLastTouchTime] = useState(0);
   const [touchStartDistance, setTouchStartDistance] = useState(0);
   const [initialPinchZoom, setInitialPinchZoom] = useState(1);
   const canvasRef = useRef<HTMLDivElement>(null);
 
-<<<<<<< HEAD
-  // Generate snap points for better alignment - disabled for now
-  /*
-=======
   // Generate snap points for better alignment
->>>>>>> origin/develop
   const generateSnapPoints = useCallback(() => {
     const gridSize = 20;
     const points: Position[] = [];
@@ -93,10 +81,6 @@ const DesignCanvas = forwardRef<HTMLDivElement, DesignCanvasProps>(({
   React.useEffect(() => {
     generateSnapPoints();
   }, [generateSnapPoints]);
-<<<<<<< HEAD
-  */
-=======
->>>>>>> origin/develop
 
   // Handle drag and drop from palette
   const handleDragOver = useCallback((event: React.DragEvent) => {
@@ -121,11 +105,7 @@ const DesignCanvas = forwardRef<HTMLDivElement, DesignCanvasProps>(({
     event.preventDefault();
     setIsDragOver(false);
     
-<<<<<<< HEAD
-    const componentType = event.dataTransfer.getData('component-type') as any;
-=======
     const componentType = event.dataTransfer.getData('component-type') as ComponentType;
->>>>>>> origin/develop
     
     if (componentType && canvasRef.current) {
       const rect = canvasRef.current.getBoundingClientRect();

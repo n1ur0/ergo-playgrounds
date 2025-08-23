@@ -29,7 +29,7 @@ const ErrorFallback = ({ error, resetErrorBoundary }: { error: Error; resetError
 
 // Simplified lazy-loaded components
 export const LazyContractDesigner = lazy(() => import('../designer/OptimizedContractDesigner'));
-export const LazyReactFlow = lazy(() => import('reactflow'));
+// export const LazyReactFlow = lazy(() => import('reactflow')); // Removed - not installed
 export const LazyCodeEditor = lazy(() => import('react-syntax-highlighter'));
 export const LazyComponentPalette = lazy(() => import('../designer/ComponentPalette'));
 export const LazyPropertyPanel = lazy(() => import('../designer/OptimizedPropertyPanel'));
@@ -91,7 +91,7 @@ export const preloadComponents = {
   propertyPanel: () => import('../designer/OptimizedPropertyPanel'),
   testScenarioPanel: () => import('../designer/TestScenarioPanel'),
   codePreview: () => import('../designer/EnhancedCodePreview'),
-  reactFlow: () => import('reactflow'),
+  // reactFlow: () => import('reactflow'), // Removed - not installed
   codeEditor: () => import('react-syntax-highlighter'),
 };
 
@@ -164,7 +164,7 @@ export const LazyLoadingBoundary: React.FC<{
 
 export default {
   LazyContractDesigner,
-  LazyReactFlow,
+  // LazyReactFlow, // Removed - not installed
   LazyCodeEditor,
   LazyComponentPalette,
   LazyPropertyPanel,

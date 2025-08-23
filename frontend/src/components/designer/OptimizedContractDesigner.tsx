@@ -1,5 +1,5 @@
 // Optimized imports for better tree-shaking
-import React, { useRef, useState, useCallback, memo, useMemo } from 'react';
+import React, { useRef, useState, useCallback, memo, useMemo, useEffect } from 'react';
 import { useContractDesigner } from '../../hooks/useContractDesigner';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import ComponentPalette from './ComponentPalette';
@@ -13,6 +13,11 @@ import './ContractDesigner.css';
 
 interface ContractDesignerProps {
   className?: string;
+  onLoad?: () => void;
+  enableAnimations?: boolean;
+  enableAdvancedRendering?: boolean;
+  lazyLoadImages?: boolean;
+  performanceMode?: string;
 }
 
 // Memoized header stats component
@@ -222,7 +227,14 @@ const StatusBar = memo<StatusBarProps>(({
 StatusBar.displayName = 'StatusBar';
 
 // Main optimized ContractDesigner component
-const OptimizedContractDesigner = memo<ContractDesignerProps>(({ className = '' }) => {
+const OptimizedContractDesigner = memo<ContractDesignerProps>(({ 
+  className = '', 
+  onLoad, 
+  enableAnimations = true,
+  enableAdvancedRendering = true,
+  lazyLoadImages = true,
+  performanceMode = 'balanced'
+}) => {
   const designer = useContractDesigner();
   const layout = useResponsiveLayout();
   const [activePanel, setActivePanel] = useState<'properties' | 'code' | 'tests' | 'validation'>('properties');
@@ -311,6 +323,13 @@ const OptimizedContractDesigner = memo<ContractDesignerProps>(({ className = '' 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+
+  // Call onLoad callback when component mounts
+  React.useEffect(() => {
+    if (onLoad) {
+      onLoad();
+    }
+  }, [onLoad]);
 
   // Memoized panel content renderer
   const renderPanelContent = useMemo(() => {
