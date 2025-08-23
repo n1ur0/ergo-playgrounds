@@ -261,15 +261,14 @@ export const KeyboardHelper = {
   },
 
   isNavigationKey(event: KeyboardEvent): boolean {
-    const navigationKeys = [
+    return [
       this.KEYS.ARROW_UP,
       this.KEYS.ARROW_DOWN,
       this.KEYS.ARROW_LEFT,
       this.KEYS.ARROW_RIGHT,
       this.KEYS.HOME,
       this.KEYS.END
-    ] as const;
-    return navigationKeys.includes(event.key as typeof navigationKeys[number]);
+    ].includes(event.key);
   },
 
   handleMenuKeyDown(

@@ -1,6 +1,7 @@
 import { useReducer, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useDebounce, useBatchUpdates, performanceUtils } from './usePerformanceOptimizations';
 import MemoryManager from '../utils/memoryManagement';
+import type { ContractComponent, Connection } from '../types/contractDesigner';
 
 // Optimized state management for high-performance components
 export interface OptimizedStateConfig<T> {
@@ -286,8 +287,8 @@ export function useOptimizedState<T extends Record<string, unknown>>(
 
 // Specialized hook for canvas state management
 export function useCanvasState(initialCanvas: {
-  components: unknown[];
-  connections: unknown[];
+  components: ContractComponent[];
+  connections: Connection[];
   selectedComponent: string | null;
   zoomLevel: number;
   offset: { x: number; y: number };

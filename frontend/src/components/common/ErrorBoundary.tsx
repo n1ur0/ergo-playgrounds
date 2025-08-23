@@ -1,6 +1,48 @@
-import React, { Component, type ReactNode } from 'react';
-import type { ErrorBoundaryProps, ErrorBoundaryState, ErrorDetails, FallbackProps } from './errorBoundaryTypes';
-import { generateErrorId, createErrorDetails } from './errorBoundaryUtils';
+import React, { Component, type ErrorInfo, type ReactNode } from 'react';
+
+// Error severity levels
+export type ErrorSeverity = 'low' | 'medium' | 'high' | 'critical';
+
+// Error details interface
+export interface ErrorDetails {
+  message: string;
+  stack?: string;
+  componentStack?: string;
+  severity: ErrorSeverity;
+  timestamp: Date;
+  userAgent: string;
+  url: string;
+  userId?: string;
+  sessionId?: string;
+  additionalInfo?: Record<string, unknown>;
+}
+
+// Error boundary state interface
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+  errorInfo: ErrorInfo | null;
+  errorId: string | null;
+  retryCount: number;
+}
+
+// Error boundary props interface
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  fallback?: (error: ErrorDetails, retry: () => void) => ReactNode;
+  onError?: (error: ErrorDetails, errorId: string) => void;
+  maxRetries?: number;
+  resetOnPropsChange?: boolean;
+  resetKeys?: Array<string | number>;
+  isolate?: boolean;
+  level?: 'page' | 'section' | 'component';
+}
+
+// Fallback component props interface
+interface FallbackProps {
+  error: ErrorDetails;
+  retry: () => void;
+}
 
 // Error logging service
 class ErrorLogger {
@@ -82,6 +124,50 @@ class ErrorLogger {
   }
 }
 
+// Utility functions
+function generateErrorId(): string {
+  return `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+function determineErrorSeverity(error: Error): ErrorSeverity {
+  const message = error.message.toLowerCase();
+  
+  if (message.includes('chunkloaderror') || message.includes('loading chunk')) {
+    return 'low'; // Network/loading issues
+  }
+  
+  if (message.includes('permission') || message.includes('unauthorized')) {
+    return 'medium'; // Permission issues
+  }
+  
+  if (message.includes('typeerror') || message.includes('referenceerror')) {
+    return 'high'; // Code errors
+  }
+  
+  if (message.includes('out of memory') || message.includes('quota exceeded')) {
+    return 'critical'; // System issues
+  }
+  
+  return 'medium'; // Default severity
+}
+
+function createErrorDetails(
+  error: Error, 
+  errorInfo: ErrorInfo, 
+  additionalInfo?: Record<string, unknown>
+): ErrorDetails {
+  return {
+    message: error.message,
+    stack: error.stack,
+    componentStack: errorInfo.componentStack,
+    severity: determineErrorSeverity(error),
+    timestamp: new Date(),
+    userAgent: navigator.userAgent,
+    url: window.location.href,
+    additionalInfo
+  };
+}
+
 // Default fallback components
 const DefaultErrorFallback: React.FC<FallbackProps> = ({ error, retry }) => {
   const isProduction = process.env.NODE_ENV === 'production';
@@ -148,7 +234,7 @@ const ComponentErrorFallback: React.FC<FallbackProps> = ({ retry }) => (
   </div>
 );
 
-const SectionErrorFallback: React.FC<FallbackProps> = ({ retry }) => (
+const SectionErrorFallback: React.FC<FallbackProps> = ({ error, retry }) => (
   <div className="section-error-fallback">
     <div className="error-content">
       <div className="error-header">
@@ -194,7 +280,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     const errorId = generateErrorId();
     const errorDetails = createErrorDetails(error, errorInfo, {
       retryCount: this.state.retryCount,
@@ -287,7 +373,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   render(): ReactNode {
-    const { hasError, error, errorInfo } = this.state;
+    const { hasError, error, errorInfo, errorId } = this.state;
     const { children, fallback } = this.props;
 
     if (hasError && error && errorInfo) {
@@ -327,7 +413,7 @@ export function useErrorHandler() {
 
   const reportError = React.useCallback((
     error: Error | string,
-    additionalInfo?: Record<string, any>
+    additionalInfo?: Record<string, unknown>
   ) => {
     const errorObj = typeof error === 'string' ? new Error(error) : error;
     const errorId = generateErrorId();

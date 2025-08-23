@@ -1,6 +1,6 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-/// <reference types="vitest" />
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -117,11 +117,11 @@ export default defineConfig({
       },
     },
     
-    // Enable source maps only for development
-    sourcemap: process.env.NODE_ENV === 'development',
+    // Enable source maps for better debugging (more compatible approach)
+    sourcemap: true,
     
-    // Optimize chunk size warnings
-    chunkSizeWarningLimit: 500,
+    // Optimize chunk size warnings (balance between HEAD's strict limit and develop's generous limit)
+    chunkSizeWarningLimit: 800,
     
     // Enable minification with better options
     minify: 'esbuild',
@@ -141,6 +141,7 @@ export default defineConfig({
       },
     }),
   },
+  
   // Performance optimizations
   optimizeDeps: {
     // Pre-bundle these dependencies for faster loading
@@ -148,6 +149,8 @@ export default defineConfig({
       'react',
       'react-dom',
       'react/jsx-runtime',
+      'framer-motion',
+      'lucide-react'
     ],
     
     // Exclude heavy or problematic dependencies from pre-bundling
@@ -155,7 +158,6 @@ export default defineConfig({
       '@vite/client',
       '@vite/env',
       'reactflow', // Large library, lazy load instead
-      'framer-motion', // Animation library, lazy load for better performance
       'react-syntax-highlighter', // Large syntax highlighting, lazy load
       'playwright', // Testing library, not needed in production
     ]
@@ -202,6 +204,5 @@ export default defineConfig({
       '**/src/test/performance/scrolling.perf.test.ts'
     ],
   },
-  
   // Note: experimental features disabled for compatibility
 })

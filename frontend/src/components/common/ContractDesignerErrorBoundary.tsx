@@ -1,6 +1,5 @@
 import React, { type ReactNode } from 'react';
-import ErrorBoundary, { useErrorHandler } from './ErrorBoundary';
-import type { ErrorDetails } from './errorBoundaryTypes';
+import { ErrorBoundary, type ErrorDetails, useErrorHandler } from './ErrorBoundary';
 import type { ContractComponent, Connection } from '../../types/contractDesigner';
 
 // Specialized error fallback for contract designer
@@ -277,7 +276,7 @@ export function useContractDesignerErrorHandler() {
       action?: string;
       componentType?: string;
       componentId?: string;
-      additionalData?: any;
+      additionalData?: Record<string, unknown>;
     }
   ) => {
     reportError(error, {

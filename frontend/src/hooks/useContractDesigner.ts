@@ -6,7 +6,8 @@ import type {
   ValidationError,
   ComponentType,
   Position,
-  TestScenario
+  TestScenario,
+  GeneratedContract
 } from '../types/contractDesigner';
 import { generateErgoScript as generateErgoScriptUtil, validateContractDesign } from '../utils/codeGeneration';
 import { useErrorHandler } from '../components/common/ErrorBoundary';
@@ -442,11 +443,11 @@ const simpleDecrypt = (encryptedText: string, key: string): string => {
 
 // Persistence utilities with encryption and data sanitization
 const persistenceUtils = {
-  saveToStorage: (key: string, data: any) => {
+  saveToStorage: (key: string, data: unknown) => {
     try {
       // Sanitize sensitive data before storage
       const sanitizedData = {
-        ...data,
+        ...data as Record<string, unknown>,
         // Remove potential sensitive information
         timestamp: Date.now(),
         version: '1.0'
@@ -756,7 +757,7 @@ export function useContractDesigner() {
   }, [state, testScenarios, safeOperation, createError]);
   
   // Enhanced load contract function with validation and error handling
-  const loadContract = useCallback(async (contractData: any) => {
+  const loadContract = useCallback(async (contractData: Partial<ContractDesignState> & { testScenarios?: TestScenario[] }) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     
     return safeOperation(
@@ -785,7 +786,7 @@ export function useContractDesigner() {
         }
         
         // Validate components array
-        if (!Array.isArray(contractData.components)) {
+        if (contractData.components && !Array.isArray(contractData.components)) {
           throw createError(
             'Contract components must be an array',
             'INVALID_COMPONENTS_FORMAT',
@@ -795,7 +796,7 @@ export function useContractDesigner() {
         }
         
         // Validate connections array
-        if (!Array.isArray(contractData.connections)) {
+        if (contractData.connections && !Array.isArray(contractData.connections)) {
           throw createError(
             'Contract connections must be an array',
             'INVALID_CONNECTIONS_FORMAT',
@@ -804,18 +805,20 @@ export function useContractDesigner() {
           );
         }
         
-        // Validate component structure
-        const invalidComponents = contractData.components.filter((comp: any, index: number) => {
-          return !comp.id || !comp.type || !comp.position;
-        });
-        
-        if (invalidComponents.length > 0) {
-          throw createError(
-            `Found ${invalidComponents.length} invalid components with missing required properties (id, type, position)`,
-            'INVALID_COMPONENT_STRUCTURE',
-            'medium',
-            { invalidComponentCount: invalidComponents.length, totalComponents: contractData.components.length }
-          );
+        // Validate component structure if components exist
+        if (contractData.components) {
+          const invalidComponents = contractData.components.filter((comp: any) => {
+            return !comp.id || !comp.type || !comp.position;
+          });
+          
+          if (invalidComponents.length > 0) {
+            throw createError(
+              `Found ${invalidComponents.length} invalid components with missing required properties (id, type, position)`,
+              'INVALID_COMPONENT_STRUCTURE',
+              'medium',
+              { invalidComponentCount: invalidComponents.length, totalComponents: contractData.components.length }
+            );
+          }
         }
         
         // Load the contract
@@ -1267,6 +1270,7 @@ function detectCircularDependencies(components: ContractComponent[], connections
   return false;
 }
 
+
 // Helper functions
 function getDefaultLabel(type: ComponentType): string {
   const labels = {
@@ -1314,7 +1318,7 @@ function getComponentCategory(type: ComponentType): ContractComponent['category'
 }
 
 
-async function executeContractTest(scenarioId: string): Promise<any> {
+async function executeContractTest(scenarioId: string): Promise<{ success: boolean; results?: unknown; error?: string }> {
   // Simulate test execution
   await new Promise(resolve => setTimeout(resolve, 2000));
   

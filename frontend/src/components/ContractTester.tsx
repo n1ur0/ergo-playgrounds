@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Code, Play, RefreshCw, CheckCircle, XCircle, Settings, Users, Network, BookOpen, AlertTriangle } from 'lucide-react';
 import CodeEditor from './CodeEditor';
 import SimulationResults from './SimulationResults';
 import ContractParameters from './ContractParameters';
 // import UTXOVisualization from './visualization/UTXOVisualization';
-import ContractEducation from './education/ContractEducation';
-import ContractDesigner from './designer/ContractDesigner';
 import WelcomePage from './WelcomePage';
 import ErrorBoundary from './common/ErrorBoundary';
+
+// Lazy load heavy components
+const ContractEducation = lazy(() => import('./education/ContractEducation'));
+const ContractDesigner = lazy(() => import('./designer/LazyContractDesigner'));
 import './ContractTester.css';
 
 interface ContractTesterProps {
@@ -2150,7 +2152,7 @@ const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample, layout
   const [isRunning, setIsRunning] = useState(false);
   const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
   const [activeTab, setActiveTab] = useState<'code' | 'params' | 'results' | 'diagram' | 'learn'>('learn');
-  const [parameters, setParameters] = useState<Record<string, any>>({});
+  const [parameters, setParameters] = useState<Record<string, string | number | boolean>>({});
 
   useEffect(() => {
     console.log('ContractTester: selectedExample changed to:', selectedExample);
@@ -2293,6 +2295,15 @@ const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample, layout
     );
   }
 
+  // Handle contract designer mode
+  if (selectedExample === 'contractDesigner') {
+    return (
+      <Suspense fallback={<div className="loading-state">Loading Contract Designer...</div>}>
+        <ContractDesigner className="contract-designer-full" />
+      </Suspense>
+    );
+  }
+
   return (
     <>
       <ErrorBoundary
@@ -2373,9 +2384,11 @@ const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample, layout
 
       <div className="contract-content">
         {activeTab === 'learn' && (
-          <ContractEducation 
-            selectedExample={selectedExample}
-          />
+          <Suspense fallback={<div className="loading-state">Loading Educational Content...</div>}>
+            <ContractEducation 
+              selectedExample={selectedExample}
+            />
+          </Suspense>
         )}
         
         {activeTab === 'code' && (

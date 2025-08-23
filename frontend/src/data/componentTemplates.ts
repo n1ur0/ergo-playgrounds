@@ -10,7 +10,7 @@ export const componentTemplates: ComponentTemplate[] = [
     icon: '📥',
     complexity: 'beginner',
     defaultProperties: {
-      id: 'output-box',
+      id: 'input-box',
       value: 1000000, // 0.001 ERG in nanoERG
       registers: {},
       tokens: []
@@ -51,6 +51,7 @@ val inputValue = inputBox.value
     defaultProperties: {
       id: 'output-box',
       value: 1000000,
+      script: 'sigmaProp(true)',
       registers: {},
       tokens: []
     },
@@ -92,7 +93,8 @@ outputBox.propositionBytes == {script}.bytes
     defaultProperties: {
       id: 'guard-condition',
       condition: 'true',
-      operator: 'AND'
+      operator: '==',
+      value: '1'
     },
     ports: {
       inputs: [
@@ -277,7 +279,7 @@ val heightValid = (currentHeight {operator} heightConstraint)
       id: 'register-access',
       register: 'R4',
       dataType: 'Coll[Byte]',
-      defaultValue: ''
+      defaultValue: null
     },
     ports: {
       inputs: [
@@ -316,9 +318,8 @@ val hasValidRegister = registerData.isDefined
     complexity: 'intermediate',
     defaultProperties: {
       id: 'validation-rule',
-      rule: '',
-      errorMessage: 'Validation failed',
-      severity: 'error'
+      rules: [],
+      combineWith: 'AND'
     },
     ports: {
       inputs: [
@@ -365,8 +366,7 @@ val validationResult = condition1 {combineWith} condition2
     defaultProperties: {
       id: 'custom-logic',
       code: 'sigmaProp(true)',
-      language: 'ergoscript',
-      parameters: []
+      description: 'Custom logic implementation'
     },
     ports: {
       inputs: [

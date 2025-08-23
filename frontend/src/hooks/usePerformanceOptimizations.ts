@@ -18,7 +18,7 @@ export function useDebounce<T>(value: T, delay: number): T {
 }
 
 // Custom hook for throttled callbacks
-export function useThrottle<T extends (...args: never[]) => unknown>(
+export function useThrottle<T extends (...args: unknown[]) => unknown>(
   callback: T,
   delay: number
 ): T {
@@ -108,7 +108,7 @@ export function useDeepMemo<T>(value: T, deps: React.DependencyList): T {
 }
 
 // Custom hook for stable callback references
-export function useStableCallback<T extends (...args: never[]) => unknown>(
+export function useStableCallback<T extends (...args: unknown[]) => unknown>(
   callback: T
 ): T {
   const callbackRef = useRef<T>(callback);
@@ -185,7 +185,7 @@ export function useResizeObserver(
 }
 
 // Custom hook for memoized event handlers
-export function useMemoizedEventHandlers<T extends Record<string, (...args: never[]) => unknown>>(
+export function useMemoizedEventHandlers<T extends Record<string, (...args: unknown[]) => unknown>>(
   handlers: T,
   deps: React.DependencyList
 ): T {

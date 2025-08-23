@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import type { ContractComponent } from '../../types/contractDesigner';
+import type { ContractComponent, ComponentProperties } from '../../types/contractDesigner';
 import { getComponentProperty } from '../../types/contractDesigner';
 import { getComponentTemplate } from '../../data/componentTemplates';
-import { propertySystem, type PropertyDefinition } from '../../utils/propertySystem';
+import { propertySystem, type PropertyDefinition, type SelectOption } from '../../utils/propertySystem';
 import './PropertyPanel.css';
 
 interface PropertyPanelProps {
@@ -69,7 +69,6 @@ function CollapsibleSection({ title, icon, defaultExpanded = true, children }: C
 }
 
 export default function PropertyPanel({ selectedComponent, onComponentUpdate }: PropertyPanelProps) {
-  // All hooks must be at the top before any early returns
   const [activeTab, setActiveTab] = useState<'properties' | 'connections' | 'validation'>('properties');
   const [propertyErrors, setPropertyErrors] = useState<Map<string, string>>(new Map());
   const [propertyWarnings, setPropertyWarnings] = useState<Map<string, string>>(new Map());
@@ -79,7 +78,7 @@ export default function PropertyPanel({ selectedComponent, onComponentUpdate }: 
     [selectedComponent]
   );
 
-  const handlePropertyUpdate = useCallback((key: string, value: unknown) => {
+  const handlePropertyUpdate = useCallback((key: string, value: ComponentProperties[string]) => {
     if (!selectedComponent) return;
     
     // Update the component property
@@ -117,18 +116,19 @@ export default function PropertyPanel({ selectedComponent, onComponentUpdate }: 
     });
   }, [selectedComponent, onComponentUpdate]);
 
-  // Dynamic property renderer based on property system
   // Render appropriate input component based on property definition
-  const renderPropertyInput = useCallback((property: PropertyDefinition, value: unknown) => {
+  const renderPropertyInput = useCallback((property: PropertyDefinition, value: ComponentProperties[string]) => {
     switch (property.type) {
       case 'string':
+      case 'tokenId':
+      case 'publicKey':
         return (
           <input
             type="text"
+            className="property-input-field"
             value={String(value ?? '')}
-            onChange={(e) => handlePropertyUpdate(property.key, e.target.value)}
-            className="property-input-text"
             placeholder={property.placeholder}
+            onChange={(e) => handlePropertyUpdate(property.key, e.target.value)}
           />
         );
 
@@ -136,18 +136,19 @@ export default function PropertyPanel({ selectedComponent, onComponentUpdate }: 
         return (
           <input
             type="number"
+            className="property-input-field"
             value={Number(value ?? 0)}
-            onChange={(e) => handlePropertyUpdate(property.key, parseFloat(e.target.value) || 0)}
-            className="property-input-number"
+            placeholder={property.placeholder}
             min={property.min}
             max={property.max}
             step={property.step}
+            onChange={(e) => handlePropertyUpdate(property.key, parseFloat(e.target.value) || 0)}
           />
         );
 
       case 'boolean':
         return (
-          <label className="property-input-checkbox">
+          <label className="checkbox-container">
             <input
               type="checkbox"
               checked={Boolean(value)}
@@ -158,18 +159,30 @@ export default function PropertyPanel({ selectedComponent, onComponentUpdate }: 
         );
 
       case 'select':
+      case 'register':
         return (
           <select
-            value={String(value ?? '')}
+            className="property-select"
+            value={String(value || '')}
             onChange={(e) => handlePropertyUpdate(property.key, e.target.value)}
-            className="property-input-select"
           >
             {property.options?.map(option => (
-              <option key={String(option.value)} value={String(option.value)}>
+              <option key={String(option.value)} value={String(option.value)} title={option.description}>
                 {option.label}
               </option>
             ))}
           </select>
+        );
+
+      case 'textarea':
+        return (
+          <textarea
+            className={`property-textarea ${property.key === 'code' ? 'code' : ''}`}
+            value={String(value || '')}
+            onChange={(e) => handlePropertyUpdate(property.key, e.target.value)}
+            rows={property.rows || 4}
+            placeholder={property.placeholder}
+          />
         );
 
       case 'array':
@@ -179,16 +192,16 @@ export default function PropertyPanel({ selectedComponent, onComponentUpdate }: 
         return (
           <input
             type="text"
+            className="property-input-field"
             value={String(value ?? '')}
             onChange={(e) => handlePropertyUpdate(property.key, e.target.value)}
-            className="property-input-text"
           />
         );
     }
   }, [handlePropertyUpdate]);
 
   // Render array property with add/remove functionality
-  const renderArrayProperty = useCallback((property: PropertyDefinition, value: unknown[]) => {
+  const renderArrayProperty = useCallback((property: PropertyDefinition, value: ComponentProperties[string][]) => {
     const addItem = () => {
       const newValue = [...value, ''];
       handlePropertyUpdate(property.key, newValue);
@@ -199,7 +212,7 @@ export default function PropertyPanel({ selectedComponent, onComponentUpdate }: 
       handlePropertyUpdate(property.key, newValue);
     };
 
-    const updateItem = (index: number, itemValue: unknown) => {
+    const updateItem = (index: number, itemValue: ComponentProperties[string]) => {
       const newValue = [...value];
       newValue[index] = itemValue;
       handlePropertyUpdate(property.key, newValue);
@@ -211,14 +224,15 @@ export default function PropertyPanel({ selectedComponent, onComponentUpdate }: 
           <div key={index} className="array-item">
             <input
               type="text"
+              className="property-input-field"
               value={String(item)}
               onChange={(e) => updateItem(index, e.target.value)}
-              className="array-item-input"
+              placeholder={property.arrayItemType?.placeholder || 'Enter value'}
             />
             <button
               type="button"
+              className="remove-item-btn"
               onClick={() => removeItem(index)}
-              className="array-item-remove"
               title="Remove item"
             >
               ✕
@@ -227,16 +241,16 @@ export default function PropertyPanel({ selectedComponent, onComponentUpdate }: 
         ))}
         <button
           type="button"
+          className="add-item-btn"
           onClick={addItem}
-          className="array-add-button"
         >
-          + Add Item
+          + Add {property.label.slice(0, -1)}
         </button>
       </div>
     );
   }, [handlePropertyUpdate]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // Dynamic property renderer based on property system
   const renderDynamicProperties = useCallback(() => {
     if (!selectedComponent) return null;
 
@@ -271,7 +285,6 @@ export default function PropertyPanel({ selectedComponent, onComponentUpdate }: 
     );
   }, [selectedComponent, propertyErrors, propertyWarnings, renderPropertyInput]);
 
-  // Early return after all hooks are defined
   if (!selectedComponent) {
     return (
       <div className="property-panel-empty">
@@ -292,7 +305,6 @@ export default function PropertyPanel({ selectedComponent, onComponentUpdate }: 
     );
   }
 
-  // Render the property panel content
   return (
     <div className="property-panel">
       <div className="panel-header">
@@ -351,9 +363,7 @@ export default function PropertyPanel({ selectedComponent, onComponentUpdate }: 
             </CollapsibleSection>
 
             <CollapsibleSection title="Configuration" icon="⚙️" defaultExpanded={true}>
-              <div className="no-properties">
-                <p>Configuration options will be available based on component type.</p>
-              </div>
+              {renderDynamicProperties()}
             </CollapsibleSection>
 
             <CollapsibleSection title="Layout & Position" icon="📐" defaultExpanded={false}>

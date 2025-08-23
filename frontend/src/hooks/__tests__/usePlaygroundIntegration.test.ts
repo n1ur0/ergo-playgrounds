@@ -8,19 +8,17 @@ global.fetch = mockFetch
 
 // Don't mock React - let it work normally for hooks
 
-describe.skip('usePlaygroundIntegration', () => {
+describe('usePlaygroundIntegration', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.clearAllMocks()
     mockFetch.mockClear()
     
-    // Default successful mock with longer timeout
-    mockFetch.mockImplementation(() => 
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ status: 'healthy' })
-      })
-    )
+    // Default successful mock
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ status: 'healthy' })
+    })
   })
 
   afterEach(() => {
@@ -48,15 +46,13 @@ describe.skip('usePlaygroundIntegration', () => {
 
       const { result } = renderHook(() => usePlaygroundIntegration())
 
-      // Allow time for the health check to complete
       await act(async () => {
-        vi.advanceTimersByTime(100)
         await new Promise(resolve => setTimeout(resolve, 0))
       })
 
       expect(mockFetch).toHaveBeenCalledWith('/api/playground/health')
       expect(result.current.isConnected).toBe(true)
-    }, 1000)
+    })
 
     it('should handle health check failure gracefully', async () => {
       mockFetch.mockRejectedValueOnce(new Error('Network error'))
@@ -64,12 +60,11 @@ describe.skip('usePlaygroundIntegration', () => {
       const { result } = renderHook(() => usePlaygroundIntegration())
 
       await act(async () => {
-        vi.advanceTimersByTime(100)
         await new Promise(resolve => setTimeout(resolve, 0))
       })
 
       expect(result.current.isConnected).toBe(false)
-    }, 1000)
+    })
   })
 
   describe('Contract compilation', () => {
@@ -529,7 +524,7 @@ describe.skip('usePlaygroundIntegration', () => {
   })
 })
 
-describe.skip('usePlaygroundConnection', () => {
+describe('usePlaygroundConnection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockFetch.mockClear()

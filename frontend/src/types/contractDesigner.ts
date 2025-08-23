@@ -304,15 +304,15 @@ export interface CustomLogicProperties extends BaseComponentProperties {
  * Includes index signature for backwards compatibility with string-based property access
  */
 export type ComponentProperties = 
-  | (InputBoxProperties & { [key: string]: any })
-  | (OutputBoxProperties & { [key: string]: any })
-  | (GuardConditionProperties & { [key: string]: any })
-  | (ValidationRuleProperties & { [key: string]: any })
-  | (TokenOperationProperties & { [key: string]: any })
-  | (RegisterAccessProperties & { [key: string]: any })
-  | (SignatureCheckProperties & { [key: string]: any })
-  | (HeightCheckProperties & { [key: string]: any })
-  | (CustomLogicProperties & { [key: string]: any });
+  | (InputBoxProperties & { [key: string]: unknown })
+  | (OutputBoxProperties & { [key: string]: unknown })
+  | (GuardConditionProperties & { [key: string]: unknown })
+  | (ValidationRuleProperties & { [key: string]: unknown })
+  | (TokenOperationProperties & { [key: string]: unknown })
+  | (RegisterAccessProperties & { [key: string]: unknown })
+  | (SignatureCheckProperties & { [key: string]: unknown })
+  | (HeightCheckProperties & { [key: string]: unknown })
+  | (CustomLogicProperties & { [key: string]: unknown });
 
 /**
  * Helper interfaces
