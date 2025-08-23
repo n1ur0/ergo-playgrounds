@@ -43,4 +43,4 @@ export interface FallbackProps {
 }
 
 // Import React types
-import { ReactNode, ErrorInfo } from 'react';
+import type { ReactNode, ErrorInfo } from 'react';

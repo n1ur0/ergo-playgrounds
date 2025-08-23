@@ -1,1 +1,561 @@
-import type { ErrorDetails } from '../components/common/errorBoundaryTypes';\n\n// Comprehensive error classification system\nexport enum ErrorCategory {\n  NETWORK = 'network',\n  VALIDATION = 'validation',\n  COMPILATION = 'compilation',\n  EXECUTION = 'execution',\n  AUTHENTICATION = 'authentication',\n  PERMISSION = 'permission',\n  RESOURCE = 'resource',\n  STATE = 'state',\n  UI = 'ui',\n  UNKNOWN = 'unknown'\n}\n\nexport enum ErrorSeverity {\n  LOW = 'low',\n  MEDIUM = 'medium',\n  HIGH = 'high',\n  CRITICAL = 'critical'\n}\n\nexport interface EnhancedError extends Error {\n  category: ErrorCategory;\n  severity: ErrorSeverity;\n  code?: string;\n  context?: Record<string, any>;\n  timestamp: Date;\n  userAgent: string;\n  url: string;\n  userId?: string;\n  sessionId?: string;\n  recoverable: boolean;\n  retryable: boolean;\n  reportable: boolean;\n}\n\nexport interface ErrorMetrics {\n  totalErrors: number;\n  errorsByCategory: Record<ErrorCategory, number>;\n  errorsBySeverity: Record<ErrorSeverity, number>;\n  recentErrors: EnhancedError[];\n  errorRate: number;\n  lastErrorTime?: Date;\n}\n\nexport interface ErrorHandlerConfig {\n  enableMetrics: boolean;\n  enableReporting: boolean;\n  enableConsoleLogging: boolean;\n  maxRecentErrors: number;\n  reportingEndpoint?: string;\n  reportingApiKey?: string;\n  enableLocalStorage: boolean;\n  localStorageKey: string;\n}\n\n// Default configuration\nconst DEFAULT_CONFIG: ErrorHandlerConfig = {\n  enableMetrics: true,\n  enableReporting: process.env.NODE_ENV === 'production',\n  enableConsoleLogging: process.env.NODE_ENV === 'development',\n  maxRecentErrors: 50,\n  reportingEndpoint: '/api/errors',\n  enableLocalStorage: true,\n  localStorageKey: 'ergo-playgrounds-error-metrics'\n};\n\n// Error classification patterns\nconst ERROR_PATTERNS = {\n  [ErrorCategory.NETWORK]: [\n    /network error/i,\n    /fetch failed/i,\n    /connection refused/i,\n    /timeout/i,\n    /cors/i,\n    /net::/i\n  ],\n  [ErrorCategory.VALIDATION]: [\n    /validation/i,\n    /invalid.*input/i,\n    /bad request/i,\n    /required.*field/i,\n    /must be/i\n  ],\n  [ErrorCategory.COMPILATION]: [\n    /compilation/i,\n    /syntax error/i,\n    /parse error/i,\n    /ergoscript/i,\n    /compiler/i\n  ],\n  [ErrorCategory.EXECUTION]: [\n    /execution/i,\n    /runtime error/i,\n    /contract.*failed/i,\n    /transaction.*error/i,\n    /blockchain/i\n  ],\n  [ErrorCategory.AUTHENTICATION]: [\n    /unauthorized/i,\n    /authentication/i,\n    /login/i,\n    /token.*expired/i,\n    /invalid.*credentials/i\n  ],\n  [ErrorCategory.PERMISSION]: [\n    /permission/i,\n    /forbidden/i,\n    /access.*denied/i,\n    /not.*allowed/i,\n    /insufficient.*privileges/i\n  ],\n  [ErrorCategory.RESOURCE]: [\n    /not found/i,\n    /resource.*unavailable/i,\n    /out of memory/i,\n    /quota.*exceeded/i,\n    /disk.*full/i\n  ],\n  [ErrorCategory.STATE]: [\n    /state/i,\n    /redux/i,\n    /context/i,\n    /hook/i,\n    /render/i\n  ],\n  [ErrorCategory.UI]: [\n    /component/i,\n    /render/i,\n    /dom/i,\n    /element/i,\n    /ref/i\n  ]\n};\n\n// Severity classification patterns\nconst SEVERITY_PATTERNS = {\n  [ErrorSeverity.CRITICAL]: [\n    /critical/i,\n    /fatal/i,\n    /system.*failure/i,\n    /crash/i,\n    /security/i\n  ],\n  [ErrorSeverity.HIGH]: [\n    /error/i,\n    /failed/i,\n    /exception/i,\n    /broken/i,\n    /corrupted/i\n  ],\n  [ErrorSeverity.MEDIUM]: [\n    /warning/i,\n    /deprecated/i,\n    /invalid/i,\n    /timeout/i,\n    /retry/i\n  ],\n  [ErrorSeverity.LOW]: [\n    /info/i,\n    /notice/i,\n    /minor/i,\n    /cosmetic/i\n  ]\n};\n\nclass ErrorHandler {\n  private static instance: ErrorHandler;\n  private config: ErrorHandlerConfig;\n  private metrics: ErrorMetrics;\n  private listeners: ((error: EnhancedError) => void)[] = [];\n  private reportQueue: EnhancedError[] = [];\n  private isReporting = false;\n\n  private constructor(config: Partial<ErrorHandlerConfig> = {}) {\n    this.config = { ...DEFAULT_CONFIG, ...config };\n    this.metrics = {\n      totalErrors: 0,\n      errorsByCategory: {} as Record<ErrorCategory, number>,\n      errorsBySeverity: {} as Record<ErrorSeverity, number>,\n      recentErrors: [],\n      errorRate: 0\n    };\n\n    // Initialize metrics objects\n    Object.values(ErrorCategory).forEach(category => {\n      this.metrics.errorsByCategory[category] = 0;\n    });\n    Object.values(ErrorSeverity).forEach(severity => {\n      this.metrics.errorsBySeverity[severity] = 0;\n    });\n\n    // Load metrics from localStorage\n    this.loadMetrics();\n\n    // Set up periodic reporting\n    if (this.config.enableReporting) {\n      setInterval(() => this.processReportQueue(), 30000); // Report every 30 seconds\n    }\n\n    // Set up periodic metrics calculation\n    setInterval(() => this.calculateErrorRate(), 60000); // Calculate every minute\n  }\n\n  public static getInstance(config?: Partial<ErrorHandlerConfig>): ErrorHandler {\n    if (!ErrorHandler.instance) {\n      ErrorHandler.instance = new ErrorHandler(config);\n    }\n    return ErrorHandler.instance;\n  }\n\n  // Classify error category based on message content\n  private classifyCategory(message: string): ErrorCategory {\n    for (const [category, patterns] of Object.entries(ERROR_PATTERNS)) {\n      if (patterns.some(pattern => pattern.test(message))) {\n        return category as ErrorCategory;\n      }\n    }\n    return ErrorCategory.UNKNOWN;\n  }\n\n  // Classify error severity based on message content\n  private classifySeverity(message: string): ErrorSeverity {\n    for (const [severity, patterns] of Object.entries(SEVERITY_PATTERNS)) {\n      if (patterns.some(pattern => pattern.test(message))) {\n        return severity as ErrorSeverity;\n      }\n    }\n    return ErrorSeverity.MEDIUM; // Default severity\n  }\n\n  // Determine if error is recoverable\n  private isRecoverable(category: ErrorCategory, severity: ErrorSeverity): boolean {\n    if (severity === ErrorSeverity.CRITICAL) return false;\n    if (category === ErrorCategory.COMPILATION) return false;\n    if (category === ErrorCategory.AUTHENTICATION) return false;\n    if (category === ErrorCategory.PERMISSION) return false;\n    return true;\n  }\n\n  // Determine if error is retryable\n  private isRetryable(category: ErrorCategory): boolean {\n    return [\n      ErrorCategory.NETWORK,\n      ErrorCategory.EXECUTION,\n      ErrorCategory.RESOURCE,\n      ErrorCategory.STATE\n    ].includes(category);\n  }\n\n  // Determine if error should be reported\n  private isReportable(severity: ErrorSeverity, category: ErrorCategory): boolean {\n    if (!this.config.enableReporting) return false;\n    if (severity === ErrorSeverity.LOW) return false;\n    if (category === ErrorCategory.UI && severity === ErrorSeverity.MEDIUM) return false;\n    return true;\n  }\n\n  // Enhanced error creation\n  public createError(\n    message: string,\n    originalError?: Error,\n    context?: Record<string, any>\n  ): EnhancedError {\n    const category = this.classifyCategory(message);\n    const severity = this.classifySeverity(message);\n    \n    const enhancedError = Object.assign(\n      originalError || new Error(message),\n      {\n        category,\n        severity,\n        code: originalError?.name,\n        context,\n        timestamp: new Date(),\n        userAgent: navigator.userAgent,\n        url: window.location.href,\n        userId: this.getUserId(),\n        sessionId: this.getSessionId(),\n        recoverable: this.isRecoverable(category, severity),\n        retryable: this.isRetryable(category),\n        reportable: this.isReportable(severity, category)\n      }\n    ) as EnhancedError;\n\n    return enhancedError;\n  }\n\n  // Handle and process error\n  public handleError(\n    error: Error | string,\n    context?: Record<string, any>\n  ): EnhancedError {\n    const enhancedError = typeof error === 'string' \n      ? this.createError(error, undefined, context)\n      : this.createError(error.message, error, context);\n\n    this.processError(enhancedError);\n    return enhancedError;\n  }\n\n  // Process error through the pipeline\n  private processError(error: EnhancedError): void {\n    // Update metrics\n    this.updateMetrics(error);\n\n    // Log to console if enabled\n    if (this.config.enableConsoleLogging) {\n      this.logToConsole(error);\n    }\n\n    // Notify listeners\n    this.notifyListeners(error);\n\n    // Add to report queue if reportable\n    if (error.reportable) {\n      this.reportQueue.push(error);\n    }\n\n    // Save metrics to localStorage\n    if (this.config.enableLocalStorage) {\n      this.saveMetrics();\n    }\n  }\n\n  // Update error metrics\n  private updateMetrics(error: EnhancedError): void {\n    this.metrics.totalErrors++;\n    this.metrics.errorsByCategory[error.category]++;\n    this.metrics.errorsBySeverity[error.severity]++;\n    this.metrics.lastErrorTime = error.timestamp;\n\n    // Add to recent errors list\n    this.metrics.recentErrors.push(error);\n    \n    // Trim recent errors to max size\n    if (this.metrics.recentErrors.length > this.config.maxRecentErrors) {\n      this.metrics.recentErrors = this.metrics.recentErrors.slice(-this.config.maxRecentErrors);\n    }\n  }\n\n  // Calculate error rate (errors per minute)\n  private calculateErrorRate(): void {\n    const oneMinuteAgo = new Date(Date.now() - 60000);\n    const recentErrors = this.metrics.recentErrors.filter(\n      error => error.timestamp > oneMinuteAgo\n    );\n    this.metrics.errorRate = recentErrors.length;\n  }\n\n  // Log error to console with formatting\n  private logToConsole(error: EnhancedError): void {\n    const style = this.getConsoleStyle(error.severity);\n    \n    console.group(`%c🚨 ${error.category.toUpperCase()} ERROR [${error.severity.toUpperCase()}]`, style);\n    console.error('Message:', error.message);\n    console.error('Category:', error.category);\n    console.error('Severity:', error.severity);\n    console.error('Timestamp:', error.timestamp.toISOString());\n    console.error('URL:', error.url);\n    \n    if (error.context) {\n      console.error('Context:', error.context);\n    }\n    \n    if (error.stack) {\n      console.error('Stack:', error.stack);\n    }\n    \n    console.error('Recoverable:', error.recoverable);\n    console.error('Retryable:', error.retryable);\n    console.groupEnd();\n  }\n\n  // Get console styling for severity\n  private getConsoleStyle(severity: ErrorSeverity): string {\n    const styles = {\n      [ErrorSeverity.CRITICAL]: 'color: white; background-color: #dc3545; font-weight: bold; padding: 2px 6px; border-radius: 3px;',\n      [ErrorSeverity.HIGH]: 'color: white; background-color: #fd7e14; font-weight: bold; padding: 2px 6px; border-radius: 3px;',\n      [ErrorSeverity.MEDIUM]: 'color: #212529; background-color: #ffc107; font-weight: bold; padding: 2px 6px; border-radius: 3px;',\n      [ErrorSeverity.LOW]: 'color: white; background-color: #6c757d; font-weight: bold; padding: 2px 6px; border-radius: 3px;'\n    };\n    return styles[severity];\n  }\n\n  // Notify error listeners\n  private notifyListeners(error: EnhancedError): void {\n    this.listeners.forEach(listener => {\n      try {\n        listener(error);\n      } catch (listenerError) {\n        console.warn('Error listener failed:', listenerError);\n      }\n    });\n  }\n\n  // Process report queue\n  private async processReportQueue(): Promise<void> {\n    if (this.isReporting || this.reportQueue.length === 0 || !this.config.reportingEndpoint) {\n      return;\n    }\n\n    this.isReporting = true;\n    const errorsToReport = [...this.reportQueue];\n    this.reportQueue = [];\n\n    try {\n      const response = await fetch(this.config.reportingEndpoint, {\n        method: 'POST',\n        headers: {\n          'Content-Type': 'application/json',\n          ...(this.config.reportingApiKey && {\n            'Authorization': `Bearer ${this.config.reportingApiKey}`\n          })\n        },\n        body: JSON.stringify({\n          errors: errorsToReport,\n          metrics: this.getMetrics(),\n          timestamp: new Date().toISOString()\n        })\n      });\n\n      if (!response.ok) {\n        throw new Error(`Reporting failed: ${response.status} ${response.statusText}`);\n      }\n\n      console.log(`Successfully reported ${errorsToReport.length} errors`);\n    } catch (reportingError) {\n      console.warn('Error reporting failed:', reportingError);\n      // Re-add errors to queue for retry\n      this.reportQueue.unshift(...errorsToReport);\n    } finally {\n      this.isReporting = false;\n    }\n  }\n\n  // Get current metrics\n  public getMetrics(): ErrorMetrics {\n    return { ...this.metrics };\n  }\n\n  // Add error listener\n  public addListener(listener: (error: EnhancedError) => void): void {\n    this.listeners.push(listener);\n  }\n\n  // Remove error listener\n  public removeListener(listener: (error: EnhancedError) => void): void {\n    const index = this.listeners.indexOf(listener);\n    if (index > -1) {\n      this.listeners.splice(index, 1);\n    }\n  }\n\n  // Clear metrics\n  public clearMetrics(): void {\n    this.metrics = {\n      totalErrors: 0,\n      errorsByCategory: {} as Record<ErrorCategory, number>,\n      errorsBySeverity: {} as Record<ErrorSeverity, number>,\n      recentErrors: [],\n      errorRate: 0\n    };\n\n    Object.values(ErrorCategory).forEach(category => {\n      this.metrics.errorsByCategory[category] = 0;\n    });\n    Object.values(ErrorSeverity).forEach(severity => {\n      this.metrics.errorsBySeverity[severity] = 0;\n    });\n\n    if (this.config.enableLocalStorage) {\n      this.saveMetrics();\n    }\n  }\n\n  // Save metrics to localStorage\n  private saveMetrics(): void {\n    try {\n      localStorage.setItem(this.config.localStorageKey, JSON.stringify(this.metrics));\n    } catch (error) {\n      console.warn('Failed to save error metrics to localStorage:', error);\n    }\n  }\n\n  // Load metrics from localStorage\n  private loadMetrics(): void {\n    try {\n      const stored = localStorage.getItem(this.config.localStorageKey);\n      if (stored) {\n        const loadedMetrics = JSON.parse(stored);\n        this.metrics = {\n          ...this.metrics,\n          ...loadedMetrics,\n          // Convert timestamp strings back to Date objects\n          recentErrors: loadedMetrics.recentErrors?.map((error: any) => ({\n            ...error,\n            timestamp: new Date(error.timestamp)\n          })) || [],\n          lastErrorTime: loadedMetrics.lastErrorTime ? new Date(loadedMetrics.lastErrorTime) : undefined\n        };\n      }\n    } catch (error) {\n      console.warn('Failed to load error metrics from localStorage:', error);\n    }\n  }\n\n  // Get user ID (implement based on your auth system)\n  private getUserId(): string | undefined {\n    // Implement user ID retrieval based on your authentication system\n    return undefined;\n  }\n\n  // Get session ID\n  private getSessionId(): string | undefined {\n    // Simple session ID based on session storage\n    let sessionId = sessionStorage.getItem('error-handler-session-id');\n    if (!sessionId) {\n      sessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;\n      sessionStorage.setItem('error-handler-session-id', sessionId);\n    }\n    return sessionId;\n  }\n}\n\n// Export singleton instance\nexport const errorHandler = ErrorHandler.getInstance();\n\n// Convenience functions\nexport const handleError = (error: Error | string, context?: Record<string, any>): EnhancedError => {\n  return errorHandler.handleError(error, context);\n};\n\nexport const getErrorMetrics = (): ErrorMetrics => {\n  return errorHandler.getMetrics();\n};\n\nexport const addErrorListener = (listener: (error: EnhancedError) => void): void => {\n  errorHandler.addListener(listener);\n};\n\nexport const removeErrorListener = (listener: (error: EnhancedError) => void): void => {\n  errorHandler.removeListener(listener);\n};\n\nexport const clearErrorMetrics = (): void => {\n  errorHandler.clearMetrics();\n};\n\n// React hook for using error handler in components\nexport const useErrorHandling = () => {\n  return {\n    handleError,\n    getMetrics: getErrorMetrics,\n    addListener: addErrorListener,\n    removeListener: removeErrorListener,\n    clearMetrics: clearErrorMetrics\n  };\n};\n\nexport default errorHandler;
+// Comprehensive error classification system
+export enum ErrorCategory {
+  NETWORK = 'network',
+  VALIDATION = 'validation',
+  COMPILATION = 'compilation',
+  EXECUTION = 'execution',
+  AUTHENTICATION = 'authentication',
+  PERMISSION = 'permission',
+  RESOURCE = 'resource',
+  STATE = 'state',
+  UI = 'ui',
+  UNKNOWN = 'unknown'
+}
+
+export enum ErrorSeverity {
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
+  CRITICAL = 'critical'
+}
+
+export interface EnhancedError extends Error {
+  category: ErrorCategory;
+  severity: ErrorSeverity;
+  code?: string;
+  context?: Record<string, any>;
+  timestamp: Date;
+  userAgent: string;
+  url: string;
+  userId?: string;
+  sessionId?: string;
+  recoverable: boolean;
+  retryable: boolean;
+  reportable: boolean;
+}
+
+export interface ErrorMetrics {
+  totalErrors: number;
+  errorsByCategory: Record<ErrorCategory, number>;
+  errorsBySeverity: Record<ErrorSeverity, number>;
+  recentErrors: EnhancedError[];
+  errorRate: number;
+  lastErrorTime?: Date;
+}
+
+export interface ErrorHandlerConfig {
+  enableMetrics: boolean;
+  enableReporting: boolean;
+  enableConsoleLogging: boolean;
+  maxRecentErrors: number;
+  reportingEndpoint?: string;
+  reportingApiKey?: string;
+  enableLocalStorage: boolean;
+  localStorageKey: string;
+}
+
+// Default configuration
+const DEFAULT_CONFIG: ErrorHandlerConfig = {
+  enableMetrics: true,
+  enableReporting: process.env.NODE_ENV === 'production',
+  enableConsoleLogging: process.env.NODE_ENV === 'development',
+  maxRecentErrors: 50,
+  reportingEndpoint: '/api/errors',
+  enableLocalStorage: true,
+  localStorageKey: 'ergo-playgrounds-error-metrics'
+};
+
+// Error classification patterns
+const ERROR_PATTERNS = {
+  [ErrorCategory.NETWORK]: [
+    /network error/i,
+    /fetch failed/i,
+    /connection refused/i,
+    /timeout/i,
+    /cors/i,
+    /net::/i
+  ],
+  [ErrorCategory.VALIDATION]: [
+    /validation/i,
+    /invalid.*input/i,
+    /bad request/i,
+    /required.*field/i,
+    /must be/i
+  ],
+  [ErrorCategory.COMPILATION]: [
+    /compilation/i,
+    /syntax error/i,
+    /parse error/i,
+    /ergoscript/i,
+    /compiler/i
+  ],
+  [ErrorCategory.EXECUTION]: [
+    /execution/i,
+    /runtime error/i,
+    /contract.*failed/i,
+    /transaction.*error/i,
+    /blockchain/i
+  ],
+  [ErrorCategory.AUTHENTICATION]: [
+    /unauthorized/i,
+    /authentication/i,
+    /login/i,
+    /token.*expired/i,
+    /invalid.*credentials/i
+  ],
+  [ErrorCategory.PERMISSION]: [
+    /permission/i,
+    /forbidden/i,
+    /access.*denied/i,
+    /not.*allowed/i,
+    /insufficient.*privileges/i
+  ],
+  [ErrorCategory.RESOURCE]: [
+    /not found/i,
+    /resource.*unavailable/i,
+    /out of memory/i,
+    /quota.*exceeded/i,
+    /disk.*full/i
+  ],
+  [ErrorCategory.STATE]: [
+    /state/i,
+    /redux/i,
+    /context/i,
+    /hook/i,
+    /render/i
+  ],
+  [ErrorCategory.UI]: [
+    /component/i,
+    /render/i,
+    /dom/i,
+    /element/i,
+    /ref/i
+  ]
+};
+
+// Severity classification patterns
+const SEVERITY_PATTERNS = {
+  [ErrorSeverity.CRITICAL]: [
+    /critical/i,
+    /fatal/i,
+    /system.*failure/i,
+    /crash/i,
+    /security/i
+  ],
+  [ErrorSeverity.HIGH]: [
+    /error/i,
+    /failed/i,
+    /exception/i,
+    /broken/i,
+    /corrupted/i
+  ],
+  [ErrorSeverity.MEDIUM]: [
+    /warning/i,
+    /deprecated/i,
+    /invalid/i,
+    /timeout/i,
+    /retry/i
+  ],
+  [ErrorSeverity.LOW]: [
+    /info/i,
+    /notice/i,
+    /minor/i,
+    /cosmetic/i
+  ]
+};
+
+class ErrorHandler {
+  private static instance: ErrorHandler;
+  private config: ErrorHandlerConfig;
+  private metrics: ErrorMetrics;
+  private listeners: ((error: EnhancedError) => void)[] = [];
+  private reportQueue: EnhancedError[] = [];
+  private isReporting = false;
+
+  private constructor(config: Partial<ErrorHandlerConfig> = {}) {
+    this.config = { ...DEFAULT_CONFIG, ...config };
+    this.metrics = {
+      totalErrors: 0,
+      errorsByCategory: {} as Record<ErrorCategory, number>,
+      errorsBySeverity: {} as Record<ErrorSeverity, number>,
+      recentErrors: [],
+      errorRate: 0
+    };
+
+    // Initialize metrics objects
+    Object.values(ErrorCategory).forEach(category => {
+      this.metrics.errorsByCategory[category] = 0;
+    });
+    Object.values(ErrorSeverity).forEach(severity => {
+      this.metrics.errorsBySeverity[severity] = 0;
+    });
+
+    // Load metrics from localStorage
+    this.loadMetrics();
+
+    // Set up periodic reporting
+    if (this.config.enableReporting) {
+      setInterval(() => this.processReportQueue(), 30000); // Report every 30 seconds
+    }
+
+    // Set up periodic metrics calculation
+    setInterval(() => this.calculateErrorRate(), 60000); // Calculate every minute
+  }
+
+  public static getInstance(config?: Partial<ErrorHandlerConfig>): ErrorHandler {
+    if (!ErrorHandler.instance) {
+      ErrorHandler.instance = new ErrorHandler(config);
+    }
+    return ErrorHandler.instance;
+  }
+
+  // Classify error category based on message content
+  private classifyCategory(message: string): ErrorCategory {
+    for (const [category, patterns] of Object.entries(ERROR_PATTERNS)) {
+      if (patterns.some(pattern => pattern.test(message))) {
+        return category as ErrorCategory;
+      }
+    }
+    return ErrorCategory.UNKNOWN;
+  }
+
+  // Classify error severity based on message content
+  private classifySeverity(message: string): ErrorSeverity {
+    for (const [severity, patterns] of Object.entries(SEVERITY_PATTERNS)) {
+      if (patterns.some(pattern => pattern.test(message))) {
+        return severity as ErrorSeverity;
+      }
+    }
+    return ErrorSeverity.MEDIUM; // Default severity
+  }
+
+  // Determine if error is recoverable
+  private isRecoverable(category: ErrorCategory, severity: ErrorSeverity): boolean {
+    if (severity === ErrorSeverity.CRITICAL) return false;
+    if (category === ErrorCategory.COMPILATION) return false;
+    if (category === ErrorCategory.AUTHENTICATION) return false;
+    if (category === ErrorCategory.PERMISSION) return false;
+    return true;
+  }
+
+  // Determine if error is retryable
+  private isRetryable(category: ErrorCategory): boolean {
+    return [
+      ErrorCategory.NETWORK,
+      ErrorCategory.EXECUTION,
+      ErrorCategory.RESOURCE,
+      ErrorCategory.STATE
+    ].includes(category);
+  }
+
+  // Determine if error should be reported
+  private isReportable(severity: ErrorSeverity, category: ErrorCategory): boolean {
+    if (!this.config.enableReporting) return false;
+    if (severity === ErrorSeverity.LOW) return false;
+    if (category === ErrorCategory.UI && severity === ErrorSeverity.MEDIUM) return false;
+    return true;
+  }
+
+  // Enhanced error creation
+  public createError(
+    message: string,
+    originalError?: Error,
+    context?: Record<string, any>
+  ): EnhancedError {
+    const category = this.classifyCategory(message);
+    const severity = this.classifySeverity(message);
+    
+    const enhancedError = Object.assign(
+      originalError || new Error(message),
+      {
+        category,
+        severity,
+        code: originalError?.name,
+        context,
+        timestamp: new Date(),
+        userAgent: navigator.userAgent,
+        url: window.location.href,
+        userId: this.getUserId(),
+        sessionId: this.getSessionId(),
+        recoverable: this.isRecoverable(category, severity),
+        retryable: this.isRetryable(category),
+        reportable: this.isReportable(severity, category)
+      }
+    ) as EnhancedError;
+
+    return enhancedError;
+  }
+
+  // Handle and process error
+  public handleError(
+    error: Error | string,
+    context?: Record<string, any>
+  ): EnhancedError {
+    const enhancedError = typeof error === 'string' 
+      ? this.createError(error, undefined, context)
+      : this.createError(error.message, error, context);
+
+    this.processError(enhancedError);
+    return enhancedError;
+  }
+
+  // Process error through the pipeline
+  private processError(error: EnhancedError): void {
+    // Update metrics
+    this.updateMetrics(error);
+
+    // Log to console if enabled
+    if (this.config.enableConsoleLogging) {
+      this.logToConsole(error);
+    }
+
+    // Notify listeners
+    this.notifyListeners(error);
+
+    // Add to report queue if reportable
+    if (error.reportable) {
+      this.reportQueue.push(error);
+    }
+
+    // Save metrics to localStorage
+    if (this.config.enableLocalStorage) {
+      this.saveMetrics();
+    }
+  }
+
+  // Update error metrics
+  private updateMetrics(error: EnhancedError): void {
+    this.metrics.totalErrors++;
+    this.metrics.errorsByCategory[error.category]++;
+    this.metrics.errorsBySeverity[error.severity]++;
+    this.metrics.lastErrorTime = error.timestamp;
+
+    // Add to recent errors list
+    this.metrics.recentErrors.push(error);
+    
+    // Trim recent errors to max size
+    if (this.metrics.recentErrors.length > this.config.maxRecentErrors) {
+      this.metrics.recentErrors = this.metrics.recentErrors.slice(-this.config.maxRecentErrors);
+    }
+  }
+
+  // Calculate error rate (errors per minute)
+  private calculateErrorRate(): void {
+    const oneMinuteAgo = new Date(Date.now() - 60000);
+    const recentErrors = this.metrics.recentErrors.filter(
+      error => error.timestamp > oneMinuteAgo
+    );
+    this.metrics.errorRate = recentErrors.length;
+  }
+
+  // Log error to console with formatting
+  private logToConsole(error: EnhancedError): void {
+    const style = this.getConsoleStyle(error.severity);
+    
+    console.group(`%c🚨 ${error.category.toUpperCase()} ERROR [${error.severity.toUpperCase()}]`, style);
+    console.error('Message:', error.message);
+    console.error('Category:', error.category);
+    console.error('Severity:', error.severity);
+    console.error('Timestamp:', error.timestamp.toISOString());
+    console.error('URL:', error.url);
+    
+    if (error.context) {
+      console.error('Context:', error.context);
+    }
+    
+    if (error.stack) {
+      console.error('Stack:', error.stack);
+    }
+    
+    console.error('Recoverable:', error.recoverable);
+    console.error('Retryable:', error.retryable);
+    console.groupEnd();
+  }
+
+  // Get console styling for severity
+  private getConsoleStyle(severity: ErrorSeverity): string {
+    const styles = {
+      [ErrorSeverity.CRITICAL]: 'color: white; background-color: #dc3545; font-weight: bold; padding: 2px 6px; border-radius: 3px;',
+      [ErrorSeverity.HIGH]: 'color: white; background-color: #fd7e14; font-weight: bold; padding: 2px 6px; border-radius: 3px;',
+      [ErrorSeverity.MEDIUM]: 'color: #212529; background-color: #ffc107; font-weight: bold; padding: 2px 6px; border-radius: 3px;',
+      [ErrorSeverity.LOW]: 'color: white; background-color: #6c757d; font-weight: bold; padding: 2px 6px; border-radius: 3px;'
+    };
+    return styles[severity];
+  }
+
+  // Notify error listeners
+  private notifyListeners(error: EnhancedError): void {
+    this.listeners.forEach(listener => {
+      try {
+        listener(error);
+      } catch (listenerError) {
+        console.warn('Error listener failed:', listenerError);
+      }
+    });
+  }
+
+  // Process report queue
+  private async processReportQueue(): Promise<void> {
+    if (this.isReporting || this.reportQueue.length === 0 || !this.config.reportingEndpoint) {
+      return;
+    }
+
+    this.isReporting = true;
+    const errorsToReport = [...this.reportQueue];
+    this.reportQueue = [];
+
+    try {
+      const response = await fetch(this.config.reportingEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this.config.reportingApiKey && {
+            'Authorization': `Bearer ${this.config.reportingApiKey}`
+          })
+        },
+        body: JSON.stringify({
+          errors: errorsToReport,
+          metrics: this.getMetrics(),
+          timestamp: new Date().toISOString()
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Reporting failed: ${response.status} ${response.statusText}`);
+      }
+
+      console.log(`Successfully reported ${errorsToReport.length} errors`);
+    } catch (reportingError) {
+      console.warn('Error reporting failed:', reportingError);
+      // Re-add errors to queue for retry
+      this.reportQueue.unshift(...errorsToReport);
+    } finally {
+      this.isReporting = false;
+    }
+  }
+
+  // Get current metrics
+  public getMetrics(): ErrorMetrics {
+    return { ...this.metrics };
+  }
+
+  // Add error listener
+  public addListener(listener: (error: EnhancedError) => void): void {
+    this.listeners.push(listener);
+  }
+
+  // Remove error listener
+  public removeListener(listener: (error: EnhancedError) => void): void {
+    const index = this.listeners.indexOf(listener);
+    if (index > -1) {
+      this.listeners.splice(index, 1);
+    }
+  }
+
+  // Clear metrics
+  public clearMetrics(): void {
+    this.metrics = {
+      totalErrors: 0,
+      errorsByCategory: {} as Record<ErrorCategory, number>,
+      errorsBySeverity: {} as Record<ErrorSeverity, number>,
+      recentErrors: [],
+      errorRate: 0
+    };
+
+    Object.values(ErrorCategory).forEach(category => {
+      this.metrics.errorsByCategory[category] = 0;
+    });
+    Object.values(ErrorSeverity).forEach(severity => {
+      this.metrics.errorsBySeverity[severity] = 0;
+    });
+
+    if (this.config.enableLocalStorage) {
+      this.saveMetrics();
+    }
+  }
+
+  // Save metrics to localStorage
+  private saveMetrics(): void {
+    try {
+      localStorage.setItem(this.config.localStorageKey, JSON.stringify(this.metrics));
+    } catch (error) {
+      console.warn('Failed to save error metrics to localStorage:', error);
+    }
+  }
+
+  // Load metrics from localStorage
+  private loadMetrics(): void {
+    try {
+      const stored = localStorage.getItem(this.config.localStorageKey);
+      if (stored) {
+        const loadedMetrics = JSON.parse(stored);
+        this.metrics = {
+          ...this.metrics,
+          ...loadedMetrics,
+          // Convert timestamp strings back to Date objects
+          recentErrors: loadedMetrics.recentErrors?.map((error: any) => ({
+            ...error,
+            timestamp: new Date(error.timestamp)
+          })) || [],
+          lastErrorTime: loadedMetrics.lastErrorTime ? new Date(loadedMetrics.lastErrorTime) : undefined
+        };
+      }
+    } catch (error) {
+      console.warn('Failed to load error metrics from localStorage:', error);
+    }
+  }
+
+  // Get user ID (implement based on your auth system)
+  private getUserId(): string | undefined {
+    // Implement user ID retrieval based on your authentication system
+    return undefined;
+  }
+
+  // Get session ID
+  private getSessionId(): string | undefined {
+    // Simple session ID based on session storage
+    let sessionId = sessionStorage.getItem('error-handler-session-id');
+    if (!sessionId) {
+      sessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      sessionStorage.setItem('error-handler-session-id', sessionId);
+    }
+    return sessionId;
+  }
+}
+
+// Export singleton instance
+export const errorHandler = ErrorHandler.getInstance();
+
+// Convenience functions
+export const handleError = (error: Error | string, context?: Record<string, any>): EnhancedError => {
+  return errorHandler.handleError(error, context);
+};
+
+export const getErrorMetrics = (): ErrorMetrics => {
+  return errorHandler.getMetrics();
+};
+
+export const addErrorListener = (listener: (error: EnhancedError) => void): void => {
+  errorHandler.addListener(listener);
+};
+
+export const removeErrorListener = (listener: (error: EnhancedError) => void): void => {
+  errorHandler.removeListener(listener);
+};
+
+export const clearErrorMetrics = (): void => {
+  errorHandler.clearMetrics();
+};
+
+// React hook for using error handler in components
+export const useErrorHandling = () => {
+  return {
+    handleError,
+    getMetrics: getErrorMetrics,
+    addListener: addErrorListener,
+    removeListener: removeErrorListener,
+    clearMetrics: clearErrorMetrics
+  };
+};
+
+export default errorHandler;

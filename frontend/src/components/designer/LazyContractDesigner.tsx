@@ -1,7 +1,8 @@
 import React, { Suspense, lazy, useMemo } from 'react';
 import type { ContractDesignerProps } from '../../types/contractDesigner';
 import { useAccessibilityPreferences } from '../../utils/accessibility';
-import { ErrorBoundary, type ErrorDetails } from '../common/ErrorBoundary';
+import ErrorBoundary from '../common/ErrorBoundary';
+import type { ErrorDetails } from '../common/errorBoundaryTypes';
 
 // Lazy load heavy components for better initial load performance
 const OptimizedContractDesigner = lazy(() => 

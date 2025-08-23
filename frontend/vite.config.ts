@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+/// <reference types="vitest" />
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -157,10 +158,7 @@ export default defineConfig({
       'framer-motion', // Animation library, lazy load for better performance
       'react-syntax-highlighter', // Large syntax highlighting, lazy load
       'playwright', // Testing library, not needed in production
-    ],
-    
-    // Force optimization for certain dependencies
-    force: ['react', 'react-dom'],
+    ]
   },
   
   // CSS optimizations

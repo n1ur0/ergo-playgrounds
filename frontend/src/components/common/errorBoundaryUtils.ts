@@ -1,4 +1,4 @@
-import { ErrorDetails, ErrorSeverity } from './errorBoundaryTypes';
+import type { ErrorDetails, ErrorSeverity } from './errorBoundaryTypes';
 import type { ErrorInfo } from 'react';
 
 // Utility functions

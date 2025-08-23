@@ -417,7 +417,7 @@ export function memoWithComparison<T extends Record<string, unknown>>(
 }
 
 // HOC for adding performance monitoring
-export function withPerformanceMonitoring<T extends Record<string, unknown>>
+export function withPerformanceMonitoring<T extends Record<string, unknown>>(
   Component: React.ComponentType<T>,
   componentName: string
 ) {

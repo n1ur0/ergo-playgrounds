@@ -1,5 +1,6 @@
 import React, { type ReactNode } from 'react';
-import { ErrorBoundary, type ErrorDetails, useErrorHandler } from './ErrorBoundary';
+import ErrorBoundary, { useErrorHandler } from './ErrorBoundary';
+import type { ErrorDetails } from './errorBoundaryTypes';
 import type { ContractComponent, Connection } from '../../types/contractDesigner';
 
 // Specialized error fallback for contract designer

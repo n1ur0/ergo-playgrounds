@@ -194,7 +194,8 @@ export const ErrorRecovery: React.FC<ErrorRecoveryProps> = ({
     // Set executing state
     setActionStates(prev => new Map(prev).set(action.id, {
       ...currentState,
-      isExecuting: true
+      isExecuting: true,
+      isOnCooldown: currentState?.isOnCooldown ?? false
     }));
 
     setRecoveryStatus('attempting');
