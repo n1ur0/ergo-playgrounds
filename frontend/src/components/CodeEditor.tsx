@@ -23,7 +23,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, language }) =>
     // Register custom ErgoScript language
     if (language === 'ergoscript') {
       try {
-        SyntaxHighlighter.registerLanguage('ergoscript', () => ergoScriptLanguage);
+        (SyntaxHighlighter as typeof SyntaxHighlighter & { registerLanguage: (name: string, fn: () => object) => void }).registerLanguage('ergoscript', () => ergoScriptLanguage);
       } catch (error) {
         console.warn('Could not register ErgoScript language:', error);
       }

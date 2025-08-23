@@ -128,12 +128,38 @@
   flex: 1;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 12px;
-  overflow: hidden;
-  /* Ensure content container doesn't exceed viewport */
-  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Ensure content container doesn't exceed viewport - optimized for more space */
+  max-height: calc(100vh - 120px);
   /* Ensure diagram content is immediately visible */
   display: flex;
   flex-direction: column;
+  /* Enable smooth scrolling */
+  scroll-behavior: smooth;
+  /* Style scrollbar for better UX */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 181, 246, 0.5) rgba(255, 255, 255, 0.1);
+}
+
+/* Webkit scrollbar styling for better cross-browser support */
+.contract-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.contract-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.contract-content::-webkit-scrollbar-thumb {
+  background: rgba(100, 181, 246, 0.5);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.contract-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 181, 246, 0.7);
 }
 
 /* ============================================================================ */
@@ -142,12 +168,16 @@
 
 @media (max-width: 768px) {
   .contract-content {
-    max-height: calc(100vh - 150px);
+    max-height: calc(100vh - 100px);
+    /* Better mobile scrolling */
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2rem;
   }
   
   .contract-tabs {
     overflow-x: auto;
     white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
   }
   
   .tab {
@@ -158,7 +188,10 @@
 
 @media (max-width: 480px) {
   .contract-content {
-    max-height: calc(100vh - 120px);
+    max-height: calc(100vh - 80px);
+    /* Enhanced mobile scrolling */
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 3rem;
   }
   
   .tab {

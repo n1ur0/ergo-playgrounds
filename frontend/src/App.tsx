@@ -78,6 +78,7 @@ function App() {
             <ContractTester 
               selectedExample={selectedExample}
               layout={layout}
+              onSelectExample={setSelectedExample}
             />
           </section>
         </div>

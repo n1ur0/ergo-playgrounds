@@ -106,9 +106,9 @@
   min-height: 0; /* Allow grid items to shrink */
 }
 
-/* Component Palette Container */
+/* Component Palette Container - Optimized width for better workflow */
 .component-palette-container {
-  width: 320px;
+  width: 360px;
   border-right: 1px solid var(--color-outline-variant);
   background: var(--color-surface);
   overflow: hidden;
@@ -162,9 +162,9 @@
   text-align: center;
 }
 
-/* Side Panel */
+/* Side Panel - Optimized width for better content display */
 .side-panel {
-  width: 350px;
+  width: 380px;
   border-left: 1px solid var(--color-outline-variant);
   background: var(--color-surface);
   display: flex;
@@ -301,7 +301,18 @@
   white-space: nowrap;
 }
 
-/* Responsive Design */
+/* Tablet Responsive Design */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .component-palette-container {
+    width: 320px;
+  }
+  
+  .side-panel {
+    width: 340px;
+  }
+}
+
+/* Mobile Responsive Design */
 @media (max-width: 768px) {
   .designer-content {
     grid-template-columns: 1fr;

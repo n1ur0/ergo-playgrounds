@@ -1,5 +1,13 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import type { ContractComponent, Position, ComponentTemplate, Port } from '../../types/contractDesigner';
+import { 
+  isInputBoxProperties,
+  isOutputBoxProperties,
+  isSignatureCheckProperties,
+  isTokenOperationProperties,
+  isCustomLogicProperties,
+  isHeightCheckProperties
+} from '../../types/contractDesigner';
 import { getComponentTemplate } from '../../data/componentTemplates';
 import './CanvasComponent.css';
 
@@ -118,39 +126,59 @@ function ValidationIndicators({ component, template, isSelected }: ValidationInd
     // Type-specific validation
     switch (component.type) {
       case 'input-box':
-      case 'output-box':
-        if (!component.properties.value || component.properties.value <= 0) {
-          errors.push('ERG value must be greater than 0');
+        if (isInputBoxProperties(component.properties)) {
+          if (!component.properties.defaultValue || component.properties.defaultValue <= 0) {
+            errors.push('Default value must be greater than 0');
+          }
+          if (component.properties.defaultValue && component.properties.defaultValue < 1000000) {
+            warnings.push('Default value is very small (less than 0.001 ERG)');
+          }
         }
-        if (component.properties.value && component.properties.value < 1000000) {
-          warnings.push('ERG value is very small (less than 0.001 ERG)');
+        break;
+
+      case 'output-box':
+        if (isOutputBoxProperties(component.properties)) {
+          if (!component.properties.value || component.properties.value <= 0) {
+            errors.push('ERG value must be greater than 0');
+          }
+          if (component.properties.value && component.properties.value < 1000000) {
+            warnings.push('ERG value is very small (less than 0.001 ERG)');
+          }
         }
         break;
 
       case 'signature-check':
-        if (!component.properties.publicKey?.trim()) {
-          errors.push('Public key is required for signature verification');
+        if (isSignatureCheckProperties(component.properties)) {
+          if (!component.properties.publicKey?.trim()) {
+            errors.push('Public key is required for signature verification');
+          }
         }
         break;
 
       case 'token-operation':
-        if (!component.properties.tokenId?.trim()) {
-          errors.push('Token ID is required');
-        }
-        if (!component.properties.amount || component.properties.amount <= 0) {
-          errors.push('Token amount must be greater than 0');
+        if (isTokenOperationProperties(component.properties)) {
+          if (!component.properties.tokenId?.trim()) {
+            errors.push('Token ID is required');
+          }
+          if (!component.properties.amount || component.properties.amount <= 0) {
+            errors.push('Token amount must be greater than 0');
+          }
         }
         break;
 
       case 'custom-logic':
-        if (!component.properties.code?.trim() || component.properties.code === 'sigmaProp(true)') {
-          warnings.push('Custom logic should implement specific contract logic');
+        if (isCustomLogicProperties(component.properties)) {
+          if (!component.properties.code?.trim() || component.properties.code === 'sigmaProp(true)') {
+            warnings.push('Custom logic should implement specific contract logic');
+          }
         }
         break;
 
       case 'height-check':
-        if (component.properties.minHeight === undefined || component.properties.minHeight < 0) {
-          errors.push('Block height must be specified and non-negative');
+        if (isHeightCheckProperties(component.properties)) {
+          if (component.properties.minHeight === undefined || component.properties.minHeight < 0) {
+            errors.push('Block height must be specified and non-negative');
+          }
         }
         break;
     }

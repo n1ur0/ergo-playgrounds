@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useRef, useEffect } from 'react';
 import { useThrottle, useDebounce, performanceUtils } from '../../hooks/usePerformanceOptimizations';
 import type { ContractComponent, Connection, Position } from '../../types/contractDesigner';
 
-// Performance-optimized canvas renderer
+// Performance-optimized canvas renderer interfaces
 interface CanvasPerformanceManagerProps {
   components: ContractComponent[];
   connections: Connection[];

@@ -26,6 +26,14 @@ const examples: Example[] = [
     isSpecial: true
   },
   {
+    id: 'contractDesigner',
+    title: '🎨 Contract Designer',
+    description: 'Create custom smart contracts with drag-and-drop interface',
+    difficulty: 'Interactive',
+    category: 'Designer',
+    isSpecial: true
+  },
+  {
     id: 'simpleSend',
     title: 'Simple Send',
     description: 'Basic transaction between two parties',

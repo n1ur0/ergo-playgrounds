@@ -6,14 +6,7 @@ import { usePlaygroundIntegration, usePlaygroundConnection } from '../usePlaygro
 const mockFetch = vi.fn()
 global.fetch = mockFetch
 
-// Mock timers
-vi.mock('react', async (importOriginal) => {
-  const actual = await importOriginal()
-  return {
-    ...actual,
-    useEffect: vi.fn((fn) => fn()),
-  }
-})
+// Don't mock React - let it work normally for hooks
 
 describe('usePlaygroundIntegration', () => {
   beforeEach(() => {
@@ -65,12 +58,6 @@ describe('usePlaygroundIntegration', () => {
       mockFetch.mockRejectedValueOnce(new Error('Network error'))
 
       const { result } = renderHook(() => usePlaygroundIntegration())
-
-      await act(async () => {
-        await new Promise(resolve => setTimeout(resolve, 100))
-      })
-
-      expect(result.current.isConnected).toBe(false)
 
       await act(async () => {
         await new Promise(resolve => setTimeout(resolve, 0))

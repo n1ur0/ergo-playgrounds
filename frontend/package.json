@@ -10,8 +10,22 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:visual": "playwright test --grep=\"Visual Regression\"",
+    "test:performance": "playwright test --grep=\"Performance Tests\"",
+    "test:cross-browser": "playwright test --grep=\"Cross-Browser\"",
+    "test:responsive": "vitest run responsive",
+    "test:scrolling": "npm run test:run -- --grep=\"scrolling\"",
+    "test:container-sizes": "playwright test src/test/integration/ContainerSizeIntegration.test.ts",
+    "test:container-layout": "vitest run src/components/__tests__/LayoutCalculations.test.tsx",
+    "test:container-responsive": "vitest run src/test/responsive/ContainerResponsive.test.tsx",
+    "test:container-visual": "playwright test src/test/visual/ContainerSizing.visual.spec.ts",
+    "test:container-cross-browser": "playwright test src/test/e2e/ContainerCrossBrowser.spec.ts",
+    "test:container-all": "npm run test:container-layout && npm run test:container-responsive && npm run test:container-sizes && npm run test:container-visual && npm run test:container-cross-browser",
+    "test:all": "npm run test:run && npm run test:e2e && npm run test:container-all"
   },
   "dependencies": {
     "@types/node": "^24.3.0",
@@ -39,6 +53,10 @@
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.39.1",
     "vite": "^7.1.2",
-    "vitest": "^3.2.4"
+    "@playwright/test": "^1.54.2",
+    "@vitest/ui": "^3.2.4",
+    "@vitest/coverage-v8": "^3.2.4",
+    "vitest": "^3.2.4",
+    "happy-dom": "^15.11.6"
   }
 }

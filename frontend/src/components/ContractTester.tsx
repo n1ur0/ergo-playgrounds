@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Code, Play, RefreshCw, CheckCircle, XCircle, Settings, Users, Network, BookOpen } from '../utils/icons';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
+import { Code, Play, RefreshCw, CheckCircle, XCircle, Settings, Users, Network, BookOpen, AlertTriangle } from 'lucide-react';
 import CodeEditor from './CodeEditor';
 import SimulationResults from './SimulationResults';
 import ContractParameters from './ContractParameters';
 // import UTXOVisualization from './visualization/UTXOVisualization';
-import { lazy, Suspense } from 'react';
+import WelcomePage from './WelcomePage';
+import ErrorBoundary from './common/ErrorBoundary';
 
 // Lazy load heavy components
 const ContractEducation = lazy(() => import('./education/ContractEducation'));
@@ -13,7 +14,8 @@ import './ContractTester.css';
 
 interface ContractTesterProps {
   selectedExample: string | null;
-  layout?: 'vertical' | 'horizontal' | 'responsive'; // Optional layout prop for responsive behavior
+  layout?: any; // Optional layout prop for responsive behavior
+  onSelectExample?: (example: string) => void; // Add callback for example selection
 }
 
 interface SimulationResult {
@@ -2145,7 +2147,7 @@ println("  • Notification scanning reveals potential recipients")
 println("  • Emergency timeouts balance recovery with privacy")`
 };
 
-const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample }) => {
+const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample, layout, onSelectExample }) => {
   const [code, setCode] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
@@ -2175,6 +2177,22 @@ const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample }) => {
       setSimulationResult(null);
     }
   }, [selectedExample]);
+
+  // Error handling functions
+  const handleCriticalError = (_error: any) => {
+    return (
+      <div className="critical-error-fallback">
+        <div className="error-message">
+          <AlertTriangle size={24} color="#dc3545" />
+          <h3>Critical Error</h3>
+          <p>The application encountered a critical error and needs to refresh.</p>
+          <button onClick={() => window.location.reload()} className="retry-button">
+            Reload Application
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   const handleRunContract = async () => {
     setIsRunning(true);
@@ -2238,13 +2256,42 @@ const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample }) => {
 
   if (!selectedExample) {
     return (
-      <div className="contract-tester-empty">
-        <div className="empty-state">
-          <Code size={48} />
-          <h2>Select a Smart Contract Example</h2>
-          <p>Choose an example from the sidebar to start testing smart contracts</p>
-        </div>
-      </div>
+      <ErrorBoundary
+        level="section"
+        fallback={(_error, retry) => (
+          <div className="welcome-error-fallback">
+            <div className="error-message">
+              <AlertTriangle size={24} color="#ffc107" />
+              <h3>Welcome Page Error</h3>
+              <p>The welcome page failed to load properly.</p>
+              <button onClick={retry} className="retry-button">
+                <RefreshCw size={16} />
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+        resetKeys={selectedExample ? [selectedExample] : []}
+      >
+        <WelcomePage 
+          onSelectExample={onSelectExample || (() => {})}
+          onToggleSidebar={layout?.toggleSidebar}
+          isMobile={layout?.isMobile}
+        />
+      </ErrorBoundary>
+    );
+  }
+
+  // Handle contract designer mode with error boundary
+  if (selectedExample === 'contractDesigner') {
+    return (
+      <ErrorBoundary
+        level="page"
+        fallback={handleCriticalError}
+        resetKeys={[selectedExample]}
+      >
+        <ContractDesigner className="contract-designer-full" />
+      </ErrorBoundary>
     );
   }
 
@@ -2258,37 +2305,44 @@ const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample }) => {
   }
 
   return (
-    <div className="contract-tester">
-      <div className="contract-header">
-        <div className="header-info">
-          <h2>{selectedExample.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</h2>
-          <div className="header-actions">
-            <button
-              className="run-button primary"
-              onClick={handleRunContract}
-              disabled={isRunning}
-            >
-              {isRunning ? (
-                <>
-                  <RefreshCw size={16} className="spinning" />
-                  Running...
-                </>
-              ) : (
-                <>
-                  <Play size={16} />
-                  Run Contract
-                </>
-              )}
-            </button>
+    <>
+      <ErrorBoundary
+        level="page"
+        fallback={handleCriticalError}
+        resetKeys={[selectedExample || '', activeTab]}
+      >
+        <div className="contract-tester">
+          
+          <div className="contract-header">
+            <div className="header-info">
+              <h2>{selectedExample.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</h2>
+              <div className="header-actions">
+                <button
+                  className={`run-button primary ${isRunning ? 'loading' : ''}`}
+                  onClick={handleRunContract}
+                  disabled={isRunning}
+                >
+                  {isRunning ? (
+                    <>
+                      <RefreshCw size={16} className="spinning" />
+                      Running...
+                    </>
+                  ) : (
+                    <>
+                      <Play size={16} />
+                      Run Contract
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <div className="contract-tabs">
-        <button
-          className={`tab ${activeTab === 'learn' ? 'active' : ''}`}
-          onClick={() => setActiveTab('learn')}
-        >
+          <div className="contract-tabs">
+            <button
+              className={`tab ${activeTab === 'learn' ? 'active' : ''}`}
+              onClick={() => setActiveTab('learn')}
+            >
           <BookOpen size={16} />
           Learn
         </button>
@@ -2368,6 +2422,8 @@ const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample }) => {
         )}
       </div>
     </div>
+      </ErrorBoundary>
+    </>
   );
 };
 

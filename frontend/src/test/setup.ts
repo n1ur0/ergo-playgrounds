@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom'
+import { vi } from 'vitest'
 
 // Mock framer-motion to avoid issues in tests
 vi.mock('framer-motion', () => ({
@@ -46,6 +47,13 @@ vi.mock('lucide-react', () => ({
   Square: () => 'Square',
   Trash2: () => 'Trash2',
   X: () => 'X',
+  ArrowRight: () => 'ArrowRight',
+  BookOpen: () => 'BookOpen',
+  Palette: () => 'Palette',
+  Zap: () => 'Zap',
+  Shield: () => 'Shield',
+  Target: () => 'Target',
+  Clock: () => 'Clock',
 }))
 
 // Global test utilities
@@ -64,3 +72,30 @@ global.IntersectionObserver = vi.fn().mockImplementation(() => ({
 // Mock scrollTo
 Element.prototype.scrollTo = vi.fn()
 window.scrollTo = vi.fn()
+
+// Mock fetch for API tests
+global.fetch = vi.fn()
+
+// Mock matchMedia for responsive tests
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn().mockImplementation((query) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(), // deprecated
+    removeListener: vi.fn(), // deprecated
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+})
+
+// Mock CSS.supports
+Object.defineProperty(CSS, 'supports', {
+  writable: true,
+  value: vi.fn(() => true),
+})
+
+// Suppress React act() warnings in tests
+global.IS_REACT_ACT_ENVIRONMENT = true
