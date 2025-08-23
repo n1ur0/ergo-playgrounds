@@ -261,14 +261,15 @@ export const KeyboardHelper = {
   },
 
   isNavigationKey(event: KeyboardEvent): boolean {
-    return [
+    const navigationKeys = [
       this.KEYS.ARROW_UP,
       this.KEYS.ARROW_DOWN,
       this.KEYS.ARROW_LEFT,
       this.KEYS.ARROW_RIGHT,
       this.KEYS.HOME,
       this.KEYS.END
-    ].includes(event.key);
+    ] as const;
+    return navigationKeys.includes(event.key as typeof navigationKeys[number]);
   },
 
   handleMenuKeyDown(
@@ -453,10 +454,14 @@ export function useAccessibilityPreferences() {
 export function withA11yProps<T extends Record<string, unknown>>(
   Component: React.ComponentType<T>
 ): React.ComponentType<T & { a11yProps?: Record<string, unknown> }> {
-  return React.forwardRef<HTMLElement, T & { a11yProps?: Record<string, unknown> }>((props, ref) => {
+  const WrappedComponent = React.forwardRef<HTMLElement, T & { a11yProps?: Record<string, unknown> }>((props, ref) => {
     const { a11yProps, ...restProps } = props;
-    return React.createElement(Component, { ref, ...restProps, ...a11yProps });
-  }) as React.ComponentType<T & { a11yProps?: Record<string, unknown> }>;
+    return React.createElement(Component, { ref, ...(restProps as unknown as T), ...(a11yProps || {}) });
+  });
+  
+  WrappedComponent.displayName = `withA11yProps(${Component.displayName || Component.name || 'Component'})`;
+  
+  return WrappedComponent as unknown as React.ComponentType<T & { a11yProps?: Record<string, unknown> }>;
 }
 
 // Validation helpers

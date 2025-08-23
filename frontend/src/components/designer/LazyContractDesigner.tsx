@@ -107,7 +107,7 @@ export const LazyContractDesigner: React.FC<LazyContractDesignerProps> = React.m
   }, []);
 
   // Error boundary with retry logic
-  const handleError = React.useCallback((error: ErrorDetails, errorId: string) => {
+  const handleError = React.useCallback((error: ErrorDetails) => {
     console.error('Component loading failed:', error);
     if (retryCount < 3) {
       setTimeout(() => setRetryCount(prev => prev + 1), 1000 * Math.pow(2, retryCount));
@@ -115,7 +115,7 @@ export const LazyContractDesigner: React.FC<LazyContractDesignerProps> = React.m
   }, [retryCount]);
 
   // Optimized loading messages
-  const getLoadingMessage = (component: string): string => {
+  const getLoadingMessage = React.useCallback((component: string): string => {
     const messages = {
       designer: 'Loading Contract Designer...',
       codePreview: 'Loading Code Preview...',
@@ -123,7 +123,7 @@ export const LazyContractDesigner: React.FC<LazyContractDesignerProps> = React.m
       validation: 'Loading Validation...'
     };
     return messages[component as keyof typeof messages] || 'Loading Component...';
-  };
+  }, []);
 
   // Create optimized Suspense wrapper
   const createSuspenseWrapper = React.useCallback((

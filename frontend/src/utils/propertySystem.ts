@@ -1,5 +1,6 @@
 import type { ContractComponent, ComponentType, ValidationError, ComponentProperties } from '../types/contractDesigner';
-import { getComponentTemplate } from '../data/componentTemplates';
+// import { getComponentProperty } from '../types/contractDesigner';
+// import { getComponentTemplate } from '../data/componentTemplates';
 
 // Property definition types
 export interface PropertyDefinition {
@@ -637,7 +638,7 @@ export class ComponentPropertySystem {
 
   getDefaultProperties(componentType: ComponentType): ComponentProperties {
     const schema = this.getPropertySchema(componentType);
-    const defaults: ComponentProperties = {};
+    const defaults: ComponentProperties = { id: 'default' } as ComponentProperties;
 
     for (const definition of schema) {
       if (definition.defaultValue !== undefined) {

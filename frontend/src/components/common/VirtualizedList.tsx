@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
 import { useVirtualScrolling } from '../../hooks/usePerformanceOptimizations';
 
 interface VirtualizedListProps<T> {
@@ -38,7 +38,7 @@ export const VirtualizedList = React.forwardRef<VirtualizedListHandle, Virtualiz
   const containerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   
-  const { visibleItems, totalHeight, handleScroll, startIndex, endIndex } = useVirtualScrolling(
+  const { visibleItems, totalHeight, handleScroll } = useVirtualScrolling(
     items,
     itemHeight,
     containerHeight,

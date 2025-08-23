@@ -46,14 +46,13 @@ const DesignCanvas = forwardRef<HTMLDivElement, DesignCanvasProps>(({
   } | null>(null);
   const [connectionPreview, setConnectionPreview] = useState<Position | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [snapPoints, setSnapPoints] = useState<Position[]>([]);
-  const [nearestSnapPoint, setNearestSnapPoint] = useState<Position | null>(null);
   const [lastTouchTime, setLastTouchTime] = useState(0);
   const [touchStartDistance, setTouchStartDistance] = useState(0);
   const [initialPinchZoom, setInitialPinchZoom] = useState(1);
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  // Generate snap points for better alignment
+  // Generate snap points for better alignment - disabled for now
+  /*
   const generateSnapPoints = useCallback(() => {
     const gridSize = 20;
     const points: Position[] = [];
@@ -81,6 +80,7 @@ const DesignCanvas = forwardRef<HTMLDivElement, DesignCanvasProps>(({
   React.useEffect(() => {
     generateSnapPoints();
   }, [generateSnapPoints]);
+  */
 
   // Handle drag and drop from palette
   const handleDragOver = useCallback((event: React.DragEvent) => {
@@ -407,7 +407,7 @@ const DesignCanvas = forwardRef<HTMLDivElement, DesignCanvasProps>(({
 
         {/* Selection Box (for future multi-select) */}
         {/* Snap Point Indicators */}
-        {isDragging && nearestSnapPoint && (
+        {/* {isDragging && nearestSnapPoint && (
           <div
             className="snap-indicator active"
             style={{
@@ -415,7 +415,7 @@ const DesignCanvas = forwardRef<HTMLDivElement, DesignCanvasProps>(({
               top: nearestSnapPoint.y
             }}
           />
-        )}
+        )} */}
 
         {/* TODO: Implement selection box for multi-select */}
       </div>

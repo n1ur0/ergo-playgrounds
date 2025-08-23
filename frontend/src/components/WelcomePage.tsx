@@ -149,7 +149,7 @@ const WelcomePage: React.FC<WelcomePageProps> = ({
   return (
     <div className="welcome-page" role="main" aria-label="Ergo Playgrounds Welcome">
       {/* Hero Section */}
-      <section className="hero-section" aria-labelledby="hero-title">
+      <section className="hero-section" aria-labelledby="hero-title" data-testid="welcome-hero">
         <div className="hero-content">
           <div className="hero-text">
             <h1 id="hero-title" className="hero-title">
@@ -193,13 +193,13 @@ const WelcomePage: React.FC<WelcomePageProps> = ({
       </section>
 
       {/* Learning Paths Section */}
-      <section className="learning-paths" aria-labelledby="learning-paths-title">
+      <section className="learning-paths" aria-labelledby="learning-paths-title" data-testid="learning-paths">
         <div className="section-header">
           <h2 id="learning-paths-title">Choose Your Learning Path</h2>
           <p>Structured paths to guide your ErgoScript journey from beginner to expert</p>
         </div>
         
-        <div className="paths-grid" role="region" aria-label="Learning path options">
+        <div className="paths-grid" role="region" aria-label="Learning paths grid">
           {learningPaths.map((path) => {
             const IconComponent = path.icon;
             return (
@@ -243,13 +243,13 @@ const WelcomePage: React.FC<WelcomePageProps> = ({
       </section>
 
       {/* Feature Showcase */}
-      <section className="feature-showcase" aria-labelledby="features-title">
+      <section className="feature-showcase" aria-labelledby="features-title" data-testid="feature-showcase">
         <div className="section-header">
           <h2 id="features-title">Explore Platform Features</h2>
           <p>Powerful tools designed for every stage of your smart contract development</p>
         </div>
         
-        <div className="features-grid" role="region" aria-label="Platform feature showcase">
+        <div className="features-grid" role="region" aria-label="Features grid">
           {features.map((feature) => {
             const IconComponent = feature.icon;
             return (
@@ -284,13 +284,13 @@ const WelcomePage: React.FC<WelcomePageProps> = ({
       </section>
 
       {/* Quick Start Section */}
-      <section className="quick-start" aria-labelledby="quickstart-title">
+      <section className="quick-start" aria-labelledby="quickstart-title" data-testid="quick-start">
         <div className="section-header">
           <h2 id="quickstart-title">Quick Start Examples</h2>
           <p>Jump right in with these beginner-friendly examples</p>
         </div>
         
-        <div className="quick-start-grid" role="region" aria-label="Quick start examples">
+        <div className="quick-start-grid" role="region" aria-label="Quick start examples grid">
           {quickStartExamples.map((example) => {
             const IconComponent = example.icon;
             return (
@@ -334,7 +334,7 @@ const WelcomePage: React.FC<WelcomePageProps> = ({
       </section>
 
       {/* Call to Action Footer */}
-      <section className="cta-footer" aria-labelledby="cta-title">
+      <section className="cta-footer" aria-labelledby="cta-title" data-testid="cta-footer">
         <div className="cta-content">
           <div className="cta-text">
             <h3 id="cta-title">Ready to Build on Ergo?</h3>

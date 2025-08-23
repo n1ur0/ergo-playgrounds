@@ -1,11 +1,16 @@
+// Optimized imports for better tree-shaking
 import React, { useRef, useState, useCallback, memo, useMemo } from 'react';
 import { useContractDesigner } from '../../hooks/useContractDesigner';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
-import ComponentPalette from './ComponentPalette';
+import { withPerformanceOptimization, useComponentPerformance, useStableCallback } from '../../utils/performanceOptimizations';
+import { 
+  SuspenseComponentPalette, 
+  SuspensePropertyPanel, 
+  SuspenseCodePreview, 
+  SuspenseTestScenarioPanel,
+  usePreloadComponents 
+} from '../lazy/LazyComponents';
 import DesignCanvas from './DesignCanvas';
-import OptimizedPropertyPanel from './OptimizedPropertyPanel';
-import CodePreview from './CodePreview';
-import TestScenarioPanel from './TestScenarioPanel';
 import ContractValidation from './ContractValidation';
 import type { ComponentType, Position } from '../../types/contractDesigner';
 import './ContractDesigner.css';
@@ -222,12 +227,24 @@ const StatusBar = memo<StatusBarProps>(({
 StatusBar.displayName = 'StatusBar';
 
 // Main optimized ContractDesigner component
-const OptimizedContractDesigner = memo<ContractDesignerProps>(({ className = '' }) => {
+const OptimizedContractDesigner = memo<ContractDesignerProps>(({ className = '', onLoad }) => {
   const designer = useContractDesigner();
   const layout = useResponsiveLayout();
   const [activePanel, setActivePanel] = useState<'properties' | 'code' | 'tests' | 'validation'>('properties');
   const [isPaletteExpanded, setIsPaletteExpanded] = useState(!layout.isMobile);
   const canvasRef = useRef<HTMLDivElement>(null);
+  
+  // Performance monitoring
+  useComponentPerformance('OptimizedContractDesigner');
+  
+  // Preload components on idle
+  const { preloadOnIdle, preloadOnHover } = usePreloadComponents();
+  
+  // Preload heavy components when idle
+  React.useEffect(() => {
+    preloadOnIdle();
+    onLoad?.();
+  }, [preloadOnIdle, onLoad]);
 
   // Memoized selected component for property panel
   const selectedComponent = useMemo(() => {
@@ -241,12 +258,12 @@ const OptimizedContractDesigner = memo<ContractDesignerProps>(({ className = '' 
     return selectedComponent?.label;
   }, [selectedComponent?.label]);
 
-  // Memoized handlers for better performance
-  const handleComponentDrop = useCallback((componentType: ComponentType, position: Position) => {
+  // Optimized handlers with stable callbacks
+  const handleComponentDrop = useStableCallback((componentType: ComponentType, position: Position) => {
     designer.addComponent(componentType, position);
   }, [designer.addComponent]);
 
-  const handleCanvasClick = useCallback((event: React.MouseEvent) => {
+  const handleCanvasClick = useStableCallback((event: React.MouseEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
 
@@ -256,13 +273,13 @@ const OptimizedContractDesigner = memo<ContractDesignerProps>(({ className = '' 
     }
   }, [designer.selectComponent]);
 
-  const handleTogglePalette = useCallback(() => {
+  const handleTogglePalette = useStableCallback(() => {
     setIsPaletteExpanded(prev => !prev);
-  }, []);
+  });
 
-  const handleTabChange = useCallback((panel: 'properties' | 'code' | 'tests' | 'validation') => {
+  const handleTabChange = useStableCallback((panel: 'properties' | 'code' | 'tests' | 'validation') => {
     setActivePanel(panel);
-  }, []);
+  });
 
   // Memoized zoom handlers
   const zoomHandlers = useMemo(() => ({
@@ -312,12 +329,12 @@ const OptimizedContractDesigner = memo<ContractDesignerProps>(({ className = '' 
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  // Memoized panel content renderer
+  // Optimized panel content renderer with lazy loading
   const renderPanelContent = useMemo(() => {
     switch (activePanel) {
       case 'properties':
         return (
-          <OptimizedPropertyPanel
+          <SuspensePropertyPanel
             selectedComponent={selectedComponent}
             onComponentUpdate={designer.updateComponent}
           />
@@ -325,7 +342,7 @@ const OptimizedContractDesigner = memo<ContractDesignerProps>(({ className = '' 
 
       case 'code':
         return (
-          <CodePreview
+          <SuspenseCodePreview
             generatedCode={designer.generatedCode}
             isGenerating={designer.isGenerating}
             validationErrors={designer.validationErrors}
@@ -335,7 +352,7 @@ const OptimizedContractDesigner = memo<ContractDesignerProps>(({ className = '' 
 
       case 'tests':
         return (
-          <TestScenarioPanel
+          <SuspenseTestScenarioPanel
             testScenarios={designer.testScenarios}
             isTestingContract={designer.isTestingContract}
             contractValid={designer.hasValidContract}
@@ -402,10 +419,13 @@ const OptimizedContractDesigner = memo<ContractDesignerProps>(({ className = '' 
 
       {/* Main Content */}
       <div className="designer-content">
-        {/* Component Palette */}
+        {/* Component Palette with lazy loading */}
         {isPaletteExpanded && (
-          <aside className="component-palette-container">
-            <ComponentPalette
+          <aside 
+            className="component-palette-container"
+            onMouseEnter={preloadOnHover('componentPalette')}
+          >
+            <SuspenseComponentPalette
               onComponentDrop={handleComponentDrop}
               isExpanded={isPaletteExpanded}
             />
@@ -493,4 +513,18 @@ const OptimizedContractDesigner = memo<ContractDesignerProps>(({ className = '' 
 
 OptimizedContractDesigner.displayName = 'OptimizedContractDesigner';
 
-export default OptimizedContractDesigner;
+// Enhanced component with performance optimization and error boundaries
+const EnhancedContractDesigner = withPerformanceOptimization(
+  OptimizedContractDesigner,
+  {
+    shouldUpdate: (prevProps, nextProps) => {
+      // Custom comparison for better performance
+      return prevProps.className !== nextProps.className ||
+             prevProps.onLoad !== nextProps.onLoad;
+    },
+    displayName: 'EnhancedContractDesigner',
+    enableProfiling: process.env.NODE_ENV === 'development',
+  }
+);
+
+export default EnhancedContractDesigner;

@@ -1,3 +1,4 @@
+import React from 'react'
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
@@ -5,7 +6,7 @@ import { userEvent } from '@testing-library/user-event'
 // We'll mock the ContractTester component since the file is very large
 // This integration test focuses on the learn section scrolling behavior
 
-const mockContractTesterWithScrolling = ({
+const MockContractTesterWithScrolling = ({
   selectedExample,
   onExampleSelect
 }: {
@@ -197,7 +198,7 @@ describe('ContractTester Integration - Learn Section Scrolling', () => {
       const mockOnSelect = vi.fn()
       
       render(
-        <mockContractTesterWithScrolling
+        <MockContractTesterWithScrolling
           selectedExample="simple-payment"
           onExampleSelect={mockOnSelect}
         />
@@ -221,7 +222,7 @@ describe('ContractTester Integration - Learn Section Scrolling', () => {
       const mockOnSelect = vi.fn()
       
       render(
-        <mockContractTesterWithScrolling
+        <MockContractTesterWithScrolling
           selectedExample="simple-payment"
           onExampleSelect={mockOnSelect}
         />
@@ -252,7 +253,7 @@ describe('ContractTester Integration - Learn Section Scrolling', () => {
       const mockOnSelect = vi.fn()
       
       render(
-        <mockContractTesterWithScrolling
+        <MockContractTesterWithScrolling
           selectedExample="simple-payment"
           onExampleSelect={mockOnSelect}
         />
@@ -289,7 +290,7 @@ describe('ContractTester Integration - Learn Section Scrolling', () => {
       const mockOnSelect = vi.fn()
       
       render(
-        <mockContractTesterWithScrolling
+        <MockContractTesterWithScrolling
           selectedExample="simple-payment"
           onExampleSelect={mockOnSelect}
         />
@@ -311,7 +312,7 @@ describe('ContractTester Integration - Learn Section Scrolling', () => {
       const startTime = performance.now()
       
       render(
-        <mockContractTesterWithScrolling
+        <MockContractTesterWithScrolling
           selectedExample="simple-payment"
           onExampleSelect={mockOnSelect}
         />
@@ -343,7 +344,7 @@ describe('ContractTester Integration - Learn Section Scrolling', () => {
       const mockOnSelect = vi.fn()
       
       render(
-        <mockContractTesterWithScrolling
+        <MockContractTesterWithScrolling
           selectedExample="simple-payment"
           onExampleSelect={mockOnSelect}
         />
@@ -368,7 +369,7 @@ describe('ContractTester Integration - Learn Section Scrolling', () => {
       const mockOnSelect = vi.fn()
       
       render(
-        <mockContractTesterWithScrolling
+        <MockContractTesterWithScrolling
           selectedExample="simple-payment"
           onExampleSelect={mockOnSelect}
         />
@@ -398,7 +399,7 @@ describe('ContractTester Integration - Learn Section Scrolling', () => {
       Element.prototype.scrollTo = mockScrollTo
       
       render(
-        <mockContractTesterWithScrolling
+        <MockContractTesterWithScrolling
           selectedExample="simple-payment"
           onExampleSelect={mockOnSelect}
         />
@@ -419,7 +420,7 @@ describe('ContractTester Integration - Learn Section Scrolling', () => {
       const mockOnSelect = vi.fn()
       
       render(
-        <mockContractTesterWithScrolling
+        <MockContractTesterWithScrolling
           selectedExample={null}
           onExampleSelect={mockOnSelect}
         />
@@ -442,7 +443,7 @@ describe('ContractTester Integration - Learn Section Scrolling', () => {
       const mockOnSelect = vi.fn()
       
       render(
-        <mockContractTesterWithScrolling
+        <MockContractTesterWithScrolling
           selectedExample="simple-payment"
           onExampleSelect={mockOnSelect}
         />
@@ -466,7 +467,7 @@ describe('ContractTester Integration - Learn Section Scrolling', () => {
       const mockOnSelect = vi.fn()
       
       render(
-        <mockContractTesterWithScrolling
+        <MockContractTesterWithScrolling
           selectedExample="simple-payment"
           onExampleSelect={mockOnSelect}
         />

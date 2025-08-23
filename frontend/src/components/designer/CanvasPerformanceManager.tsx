@@ -1,17 +1,8 @@
 import React, { useCallback, useMemo, useRef, useEffect } from 'react';
-import { useThrottle, useDebounce, performanceUtils } from '../../hooks/usePerformanceOptimizations';
+import { useThrottle, performanceUtils } from '../../hooks/usePerformanceOptimizations';
 import type { ContractComponent, Connection, Position } from '../../types/contractDesigner';
 
-// Performance-optimized canvas renderer
-interface CanvasPerformanceManagerProps {
-  components: ContractComponent[];
-  connections: Connection[];
-  selectedComponent: string | null;
-  zoomLevel: number;
-  canvasOffset: Position;
-  onRender?: (metrics: RenderMetrics) => void;
-  enableOptimizations?: boolean;
-}
+// Performance-optimized canvas renderer interfaces
 
 interface RenderMetrics {
   renderTime: number;
@@ -102,7 +93,7 @@ export class CanvasOptimizer {
     complexity: 'simple' | 'curved' | 'orthogonal'
   ): string {
     const dx = end.x - start.x;
-    const dy = end.y - start.y;
+    // const dy = end.y - start.y; // Reserved for future curved path improvements
     
     switch (complexity) {
       case 'simple':
@@ -282,7 +273,7 @@ export function useCanvasPerformance({
     }));
     
     return visible;
-  }, [components, enableOptimizations, zoomLevel, canvasOffset]);
+  }, [components, enableOptimizations]);
 
   // Memoized visible connections
   const visibleConnections = useMemo(() => {

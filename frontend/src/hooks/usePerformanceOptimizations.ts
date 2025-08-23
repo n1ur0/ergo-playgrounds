@@ -18,7 +18,7 @@ export function useDebounce<T>(value: T, delay: number): T {
 }
 
 // Custom hook for throttled callbacks
-export function useThrottle<T extends (...args: any[]) => any>(
+export function useThrottle<T extends (...args: never[]) => unknown>(
   callback: T,
   delay: number
 ): T {
@@ -79,7 +79,7 @@ export function useDeepMemo<T>(value: T, deps: React.DependencyList): T {
 
   return useMemo(() => {
     // Deep compare dependencies
-    const isEqual = (a: any, b: any): boolean => {
+    const isEqual = (a: unknown, b: unknown): boolean => {
       if (a === b) return true;
       if (a == null || b == null) return false;
       if (typeof a !== typeof b) return false;
@@ -108,7 +108,7 @@ export function useDeepMemo<T>(value: T, deps: React.DependencyList): T {
 }
 
 // Custom hook for stable callback references
-export function useStableCallback<T extends (...args: any[]) => any>(
+export function useStableCallback<T extends (...args: never[]) => unknown>(
   callback: T
 ): T {
   const callbackRef = useRef<T>(callback);
@@ -185,7 +185,7 @@ export function useResizeObserver(
 }
 
 // Custom hook for memoized event handlers
-export function useMemoizedEventHandlers<T extends Record<string, (...args: any[]) => any>>(
+export function useMemoizedEventHandlers<T extends Record<string, (...args: never[]) => unknown>>(
   handlers: T,
   deps: React.DependencyList
 ): T {
@@ -345,7 +345,7 @@ export const performanceUtils = {
   },
 
   // Shallow equality check for objects
-  shallowEqual: (a: any, b: any): boolean => {
+  shallowEqual: (a: unknown, b: unknown): boolean => {
     if (a === b) return true;
     if (a == null || b == null) return false;
     if (typeof a !== 'object' || typeof b !== 'object') return false;
@@ -409,7 +409,7 @@ export const performanceUtils = {
 };
 
 // HOC for memo with custom comparison
-export function memoWithComparison<T extends Record<string, any>>(
+export function memoWithComparison<T extends Record<string, unknown>>(
   Component: React.ComponentType<T>,
   compareFn?: (prevProps: T, nextProps: T) => boolean
 ) {
@@ -417,7 +417,7 @@ export function memoWithComparison<T extends Record<string, any>>(
 }
 
 // HOC for adding performance monitoring
-export function withPerformanceMonitoring<T extends Record<string, any>>(
+export function withPerformanceMonitoring<T extends Record<string, unknown>>
   Component: React.ComponentType<T>,
   componentName: string
 ) {

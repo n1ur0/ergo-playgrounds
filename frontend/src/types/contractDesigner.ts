@@ -193,9 +193,218 @@ export interface VisualizationConfig {
   layoutAlgorithm: 'force-directed' | 'hierarchical' | 'circular';
 }
 
-// Additional type definitions to replace any types
-export interface ComponentProperties {
-  [key: string]: string | number | boolean | ComponentProperties | ComponentProperties[] | null | undefined;
+// Component property type definitions - using specific interfaces instead of broad union types
+
+/**
+ * Base interface for all component properties
+ */
+export interface BaseComponentProperties {
+  readonly id: string;
+  readonly label?: string;
+  readonly description?: string;
+  readonly required?: boolean;
+  readonly disabled?: boolean;
+}
+
+/**
+ * Input box component properties
+ */
+export interface InputBoxProperties extends BaseComponentProperties {
+  readonly minValue?: number;
+  readonly maxValue?: number;
+  readonly defaultValue?: number;
+  readonly units?: string;
+  readonly placeholder?: string;
+}
+
+/**
+ * Output box component properties
+ */
+export interface OutputBoxProperties extends BaseComponentProperties {
+  readonly address?: string;
+  readonly minHeight?: number;
+  readonly value?: number;
+  readonly tokens?: readonly TokenAmount[];
+  readonly registers?: Record<string, string>;
+}
+
+/**
+ * Guard condition component properties
+ */
+export interface GuardConditionProperties extends BaseComponentProperties {
+  readonly condition?: string;
+  readonly operator?: 'AND' | 'OR' | 'NOT' | 'IMPLIES';
+  readonly timeout?: number;
+  readonly fallbackKey?: string;
+}
+
+/**
+ * Validation rule component properties
+ */
+export interface ValidationRuleProperties extends BaseComponentProperties {
+  readonly rule?: string;
+  readonly errorMessage?: string;
+  readonly severity?: 'error' | 'warning' | 'info';
+  readonly customValidation?: string;
+}
+
+/**
+ * Token operation component properties
+ */
+export interface TokenOperationProperties extends BaseComponentProperties {
+  readonly operation?: 'mint' | 'burn' | 'transfer';
+  readonly tokenId?: string;
+  readonly amount?: number;
+  readonly recipient?: string;
+  readonly metadata?: Record<string, string>;
+}
+
+/**
+ * Register access component properties
+ */
+export interface RegisterAccessProperties extends BaseComponentProperties {
+  readonly register?: 'R4' | 'R5' | 'R6' | 'R7' | 'R8' | 'R9';
+  readonly dataType?: 'Int' | 'Long' | 'BigInt' | 'SigmaProp' | 'Coll[Byte]' | 'Box';
+  readonly accessMode?: 'read' | 'write';
+  readonly defaultValue?: string;
+}
+
+/**
+ * Signature check component properties
+ */
+export interface SignatureCheckProperties extends BaseComponentProperties {
+  readonly publicKey?: string;
+  readonly message?: string;
+  readonly algorithm?: 'schnorr' | 'ecdsa';
+  readonly required?: boolean;
+}
+
+/**
+ * Height check component properties
+ */
+export interface HeightCheckProperties extends BaseComponentProperties {
+  readonly minHeight?: number;
+  readonly maxHeight?: number;
+  readonly operator?: '<' | '<=' | '>' | '>=' | '==' | '!=';
+  readonly currentHeight?: number;
+}
+
+/**
+ * Custom logic component properties
+ */
+export interface CustomLogicProperties extends BaseComponentProperties {
+  readonly code?: string;
+  readonly language?: 'ergoscript' | 'scala';
+  readonly parameters?: readonly Parameter[];
+  readonly returnType?: string;
+}
+
+/**
+ * Union type for all component properties - discriminated by component type
+ * Includes index signature for backwards compatibility with string-based property access
+ */
+export type ComponentProperties = 
+  | (InputBoxProperties & { [key: string]: any })
+  | (OutputBoxProperties & { [key: string]: any })
+  | (GuardConditionProperties & { [key: string]: any })
+  | (ValidationRuleProperties & { [key: string]: any })
+  | (TokenOperationProperties & { [key: string]: any })
+  | (RegisterAccessProperties & { [key: string]: any })
+  | (SignatureCheckProperties & { [key: string]: any })
+  | (HeightCheckProperties & { [key: string]: any })
+  | (CustomLogicProperties & { [key: string]: any });
+
+/**
+ * Helper interfaces
+ */
+export interface TokenAmount {
+  readonly tokenId: string;
+  readonly amount: number;
+}
+
+export interface Parameter {
+  readonly name: string;
+  readonly type: string;
+  readonly defaultValue?: string;
+  readonly description?: string;
+}
+
+/**
+ * Type guards for ComponentProperties discriminated union
+ */
+export function isInputBoxProperties(props: ComponentProperties): props is InputBoxProperties {
+  return 'minValue' in props || 'maxValue' in props || 'defaultValue' in props || 'units' in props || 'placeholder' in props;
+}
+
+export function isOutputBoxProperties(props: ComponentProperties): props is OutputBoxProperties {
+  return 'address' in props || 'minHeight' in props || 'value' in props || 'tokens' in props || 'registers' in props;
+}
+
+export function isGuardConditionProperties(props: ComponentProperties): props is GuardConditionProperties {
+  return 'condition' in props || 'operator' in props || 'timeout' in props || 'fallbackKey' in props;
+}
+
+export function isValidationRuleProperties(props: ComponentProperties): props is ValidationRuleProperties {
+  return 'rule' in props || 'errorMessage' in props || 'severity' in props || 'customValidation' in props;
+}
+
+export function isTokenOperationProperties(props: ComponentProperties): props is TokenOperationProperties {
+  return 'operation' in props || 'tokenId' in props || 'amount' in props || 'recipient' in props || 'metadata' in props;
+}
+
+export function isRegisterAccessProperties(props: ComponentProperties): props is RegisterAccessProperties {
+  return 'register' in props || 'dataType' in props || 'accessMode' in props || 'defaultValue' in props;
+}
+
+export function isSignatureCheckProperties(props: ComponentProperties): props is SignatureCheckProperties {
+  return 'publicKey' in props || 'message' in props || 'algorithm' in props;
+}
+
+export function isHeightCheckProperties(props: ComponentProperties): props is HeightCheckProperties {
+  return 'minHeight' in props || 'maxHeight' in props || 'operator' in props || 'currentHeight' in props;
+}
+
+export function isCustomLogicProperties(props: ComponentProperties): props is CustomLogicProperties {
+  return 'code' in props || 'language' in props || 'parameters' in props || 'returnType' in props;
+}
+
+/**
+ * Utility functions for type-safe property access
+ */
+export function getPropertyValue<T extends ComponentProperties, K extends keyof T>(
+  props: T,
+  key: K
+): T[K] | undefined {
+  return props[key];
+}
+
+export function hasProperty<T extends ComponentProperties>(
+  props: T,
+  key: keyof T
+): boolean {
+  return key in props && props[key] !== undefined && props[key] !== null;
+}
+
+/**
+ * Type-safe property accessor for ComponentProperties
+ */
+export function getComponentProperty(
+  props: ComponentProperties, 
+  key: string
+): string | number | boolean | TokenAmount[] | Parameter[] | Record<string, string> | null | undefined {
+  // Use type assertion since we know the property exists at runtime
+  return (props as any)[key];
+}
+
+/**
+ * Type-safe property setter for ComponentProperties
+ */
+export function setComponentProperty(
+  props: ComponentProperties,
+  key: string,
+  value: string | number | boolean | TokenAmount[] | Parameter[] | Record<string, string> | null | undefined
+): ComponentProperties {
+  return { ...props, [key]: value } as ComponentProperties;
 }
 
 export type TestValue = 

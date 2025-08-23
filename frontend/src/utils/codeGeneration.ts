@@ -26,11 +26,14 @@ class TemplateProcessor {
   processTemplate(template: string, component: ContractComponent): string {
     let processed = template;
     
-    // Replace property placeholders
+    // Replace property placeholders with input validation
     for (const [key, value] of Object.entries(component.properties)) {
       const placeholder = `{${key}}`;
       const regex = new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g');
-      processed = processed.replace(regex, String(value));
+      
+      // Sanitize and validate property values
+      const sanitizedValue = this.sanitizePropertyValue(String(value), key);
+      processed = processed.replace(regex, sanitizedValue);
     }
     
     // Replace connection-based placeholders
@@ -102,6 +105,50 @@ class TemplateProcessor {
     return 'true';
   }
   
+  // Input sanitization to prevent code injection
+  private sanitizePropertyValue(value: string, propertyType: string): string {
+    // Remove dangerous characters and patterns
+    let sanitized = value.replace(/[<>'"\\]/g, '');
+    
+    // Validate based on property type
+    switch (propertyType) {
+      case 'value':
+      case 'amount':
+      case 'minHeight':
+        // Only allow numbers
+        sanitized = sanitized.replace(/[^0-9]/g, '');
+        if (!sanitized) sanitized = '0';
+        break;
+        
+      case 'operator':
+        // Only allow known operators
+        const validOperators = ['==', '!=', '>', '<', '>=', '<=', '&&', '||'];
+        if (!validOperators.includes(sanitized)) {
+          sanitized = '==';
+        }
+        break;
+        
+      case 'publicKey':
+        // Allow only alphanumeric characters
+        sanitized = sanitized.replace(/[^a-zA-Z0-9]/g, '');
+        if (!sanitized) sanitized = 'ownerPk';
+        break;
+        
+      case 'code':
+        // More restrictive for custom code - remove potentially dangerous patterns
+        sanitized = sanitized.replace(/(eval|function|=\s*>|=>)/gi, '');
+        if (!sanitized.trim()) sanitized = 'true';
+        break;
+        
+      default:
+        // General sanitization - remove special characters
+        sanitized = sanitized.replace(/[^a-zA-Z0-9_]/g, '');
+        if (!sanitized) sanitized = 'true';
+    }
+    
+    return sanitized;
+  }
+
   private fillDefaults(template: string, component: ContractComponent): string {
     const defaults = {
       'value': component.properties.value || '1000000',

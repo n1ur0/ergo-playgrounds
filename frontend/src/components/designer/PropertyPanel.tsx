@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import type { ContractComponent } from '../../types/contractDesigner';
+import { getComponentProperty } from '../../types/contractDesigner';
 import { getComponentTemplate } from '../../data/componentTemplates';
-import { propertySystem, type PropertyDefinition, type SelectOption } from '../../utils/propertySystem';
+import { propertySystem, type PropertyDefinition } from '../../utils/propertySystem';
 import './PropertyPanel.css';
 
 interface PropertyPanelProps {
@@ -68,37 +69,19 @@ function CollapsibleSection({ title, icon, defaultExpanded = true, children }: C
 }
 
 export default function PropertyPanel({ selectedComponent, onComponentUpdate }: PropertyPanelProps) {
+  // All hooks must be at the top before any early returns
   const [activeTab, setActiveTab] = useState<'properties' | 'connections' | 'validation'>('properties');
+  const [propertyErrors, setPropertyErrors] = useState<Map<string, string>>(new Map());
+  const [propertyWarnings, setPropertyWarnings] = useState<Map<string, string>>(new Map());
 
   const template = useMemo(
     () => selectedComponent ? getComponentTemplate(selectedComponent.type) : null,
     [selectedComponent]
   );
 
-  if (!selectedComponent) {
-    return (
-      <div className="property-panel-empty">
-        <div className="empty-state">
-          <div className="empty-icon">⚙️</div>
-          <h3>No Component Selected</h3>
-          <p>Select a component on the canvas to edit its properties.</p>
-          <div className="empty-tips">
-            <h4>💡 Quick Tips</h4>
-            <ul>
-              <li>Click any component to select it</li>
-              <li>Double-click to rename components</li>
-              <li>Use keyboard shortcuts for faster editing</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const [propertyErrors, setPropertyErrors] = useState<Map<string, string>>(new Map());
-  const [propertyWarnings, setPropertyWarnings] = useState<Map<string, string>>(new Map());
-
-  const handlePropertyUpdate = useCallback((key: string, value: any) => {
+  const handlePropertyUpdate = useCallback((key: string, value: unknown) => {
+    if (!selectedComponent) return;
+    
     // Update the component property
     onComponentUpdate(selectedComponent.id, {
       properties: { ...selectedComponent.properties, [key]: value }
@@ -113,26 +96,147 @@ export default function PropertyPanel({ selectedComponent, onComponentUpdate }: 
     );
 
     // Update errors and warnings
-    const newErrors = new Map(propertyErrors);
-    const newWarnings = new Map(propertyWarnings);
+    setPropertyErrors(prev => {
+      const newErrors = new Map(prev);
+      if (!validation.isValid && validation.error) {
+        newErrors.set(key, validation.error);
+      } else {
+        newErrors.delete(key);
+      }
+      return newErrors;
+    });
 
-    if (!validation.isValid && validation.error) {
-      newErrors.set(key, validation.error);
-    } else {
-      newErrors.delete(key);
-    }
-
-    if (validation.warning) {
-      newWarnings.set(key, validation.warning);
-    } else {
-      newWarnings.delete(key);
-    }
-
-    setPropertyErrors(newErrors);
-    setPropertyWarnings(newWarnings);
-  }, [selectedComponent, onComponentUpdate, propertyErrors, propertyWarnings]);
+    setPropertyWarnings(prev => {
+      const newWarnings = new Map(prev);
+      if (validation.warning) {
+        newWarnings.set(key, validation.warning);
+      } else {
+        newWarnings.delete(key);
+      }
+      return newWarnings;
+    });
+  }, [selectedComponent, onComponentUpdate]);
 
   // Dynamic property renderer based on property system
+  // Render appropriate input component based on property definition
+  const renderPropertyInput = useCallback((property: PropertyDefinition, value: unknown) => {
+    const commonProps = {
+      value: value ?? '',
+      onChange: (newValue: unknown) => handlePropertyUpdate(property.key, newValue)
+    };
+
+    switch (property.type) {
+      case 'string':
+        return (
+          <input
+            type="text"
+            {...commonProps}
+            className="property-input-text"
+            placeholder={property.placeholder}
+          />
+        );
+
+      case 'number':
+        return (
+          <input
+            type="number"
+            {...commonProps}
+            className="property-input-number"
+            min={property.min}
+            max={property.max}
+            step={property.step}
+          />
+        );
+
+      case 'boolean':
+        return (
+          <label className="property-input-checkbox">
+            <input
+              type="checkbox"
+              checked={Boolean(value)}
+              onChange={(e) => commonProps.onChange(e.target.checked)}
+            />
+            <span className="checkmark"></span>
+          </label>
+        );
+
+      case 'select':
+        return (
+          <select
+            {...commonProps}
+            className="property-input-select"
+          >
+            {property.options?.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        );
+
+      case 'array':
+        return renderArrayProperty(property, Array.isArray(value) ? value : []);
+
+      default:
+        return (
+          <input
+            type="text"
+            {...commonProps}
+            className="property-input-text"
+          />
+        );
+    }
+  }, [handlePropertyUpdate]);
+
+  // Render array property with add/remove functionality
+  const renderArrayProperty = useCallback((property: PropertyDefinition, value: unknown[]) => {
+    const addItem = () => {
+      const newValue = [...value, ''];
+      handlePropertyUpdate(property.key, newValue);
+    };
+
+    const removeItem = (index: number) => {
+      const newValue = value.filter((_, i) => i !== index);
+      handlePropertyUpdate(property.key, newValue);
+    };
+
+    const updateItem = (index: number, itemValue: unknown) => {
+      const newValue = [...value];
+      newValue[index] = itemValue;
+      handlePropertyUpdate(property.key, newValue);
+    };
+
+    return (
+      <div className="array-property">
+        {value.map((item, index) => (
+          <div key={index} className="array-item">
+            <input
+              type="text"
+              value={String(item)}
+              onChange={(e) => updateItem(index, e.target.value)}
+              className="array-item-input"
+            />
+            <button
+              type="button"
+              onClick={() => removeItem(index)}
+              className="array-item-remove"
+              title="Remove item"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={addItem}
+          className="array-add-button"
+        >
+          + Add Item
+        </button>
+      </div>
+    );
+  }, [handlePropertyUpdate]);
+
   const renderDynamicProperties = useCallback(() => {
     if (!selectedComponent) return null;
 
@@ -159,16 +263,37 @@ export default function PropertyPanel({ selectedComponent, onComponentUpdate }: 
               error={propertyErrors.get(property.key)}
               warning={propertyWarnings.get(property.key)}
             >
-              {renderPropertyInput(property, selectedComponent.properties[property.key] ?? property.defaultValue)}
+              {renderPropertyInput(property, getComponentProperty(selectedComponent.properties, property.key) ?? property.defaultValue)}
             </PropertyField>
           );
         })}
       </>
     );
-  }, [selectedComponent, propertyErrors, propertyWarnings]);
+  }, [selectedComponent, propertyErrors, propertyWarnings, renderPropertyInput]);
 
-  // Render appropriate input component based on property definition
-  const renderPropertyInput = useCallback((property: PropertyDefinition, value: any) => {
+  // Early return after all hooks are defined
+  if (!selectedComponent) {
+    return (
+      <div className="property-panel-empty">
+        <div className="empty-state">
+          <div className="empty-icon">⚙️</div>
+          <h3>No Component Selected</h3>
+          <p>Select a component on the canvas to edit its properties.</p>
+          <div className="empty-tips">
+            <h4>💡 Quick Tips</h4>
+            <ul>
+              <li>Click any component to select it</li>
+              <li>Double-click to rename components</li>
+              <li>Use keyboard shortcuts for faster editing</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Render the property panel content
+  return (
     const commonProps = {
       value: value ?? '',
       onChange: (newValue: any) => handlePropertyUpdate(property.key, newValue)

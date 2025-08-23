@@ -128,8 +128,8 @@ export class MemoryManager {
     this.animationFrames.clear();
   }
 
-  // Memory usage monitoring (secure implementation)
-  static getMemoryUsage(): { usedJSHeapSize?: number; totalJSHeapSize?: number; jsHeapSizeLimit?: number } | null {
+  // Memory usage monitoring (secure implementation with fingerprinting protection)
+  static getMemoryUsage(): { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number } | null {
     try {
       // Only access memory API in secure contexts with proper feature detection
       if (typeof performance !== 'undefined' && 
@@ -137,11 +137,15 @@ export class MemoryManager {
           performance.memory &&
           typeof performance.memory === 'object') {
         const memory = performance.memory as PerformanceMemory;
-        // Only return safe, non-fingerprinting memory stats
+        
+        // Add fingerprinting protection by rounding values and adding noise
+        const roundToMB = (bytes: number) => Math.round(bytes / (1024 * 1024)) * (1024 * 1024);
+        const addNoise = (value: number) => value + (Math.random() * 1024 * 1024 - 512 * 1024); // ±512KB noise
+        
         return {
-          usedJSHeapSize: memory.usedJSHeapSize,
-          totalJSHeapSize: memory.totalJSHeapSize,
-          jsHeapSizeLimit: memory.jsHeapSizeLimit
+          usedJSHeapSize: roundToMB(addNoise(memory.usedJSHeapSize)),
+          totalJSHeapSize: roundToMB(memory.totalJSHeapSize),
+          jsHeapSizeLimit: roundToMB(memory.jsHeapSizeLimit)
         };
       }
     } catch (error) {
@@ -151,6 +155,181 @@ export class MemoryManager {
   }
 
   // Removed automatic GC scheduling for security - let browser manage memory
+
+  // Secure deep cloning function with prototype pollution protection
+  static deepClone<T>(obj: T): T {
+    if (obj === null || typeof obj !== 'object') {
+      return obj;
+    }
+
+    // Use native structuredClone if available (modern browsers)
+    if (typeof structuredClone === 'function') {
+      try {
+        return structuredClone(obj);
+      } catch (error) {
+        // Fallback to safe manual cloning if structuredClone fails
+        console.warn('structuredClone failed, falling back to manual cloning:', error);
+      }
+    }
+
+    // Safe manual cloning with prototype pollution protection
+    return this.safeDeepClone(obj);
+  }
+
+  private static safeDeepClone<T>(obj: T): T {
+    // Handle primitive types
+    if (obj === null || typeof obj !== 'object') {
+      return obj;
+    }
+
+    // Handle Date objects
+    if (obj instanceof Date) {
+      return new Date(obj.getTime()) as unknown as T;
+    }
+
+    // Handle RegExp objects
+    if (obj instanceof RegExp) {
+      return new RegExp(obj.source, obj.flags) as unknown as T;
+    }
+
+    // Handle Arrays
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.safeDeepClone(item)) as unknown as T;
+    }
+
+    // Handle Map objects
+    if (obj instanceof Map) {
+      const clonedMap = new Map();
+      for (const [key, value] of obj) {
+        clonedMap.set(this.safeDeepClone(key), this.safeDeepClone(value));
+      }
+      return clonedMap as unknown as T;
+    }
+
+    // Handle Set objects
+    if (obj instanceof Set) {
+      const clonedSet = new Set();
+      for (const value of obj) {
+        clonedSet.add(this.safeDeepClone(value));
+      }
+      return clonedSet as unknown as T;
+    }
+
+    // Handle plain objects with prototype pollution protection
+    if (this.isPlainObject(obj)) {
+      const cloned = Object.create(null) as Record<string, any>; // Create object without prototype
+      
+      for (const key in obj) {
+        // Security: Prevent prototype pollution by blocking dangerous keys
+        if (this.isDangerousKey(key)) {
+          console.warn(`Skipping dangerous key during cloning: ${key}`);
+          continue;
+        }
+
+        // Only clone own properties (not inherited)
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          cloned[key] = this.safeDeepClone((obj as any)[key]);
+        }
+      }
+
+      // Convert back to regular object while preserving constructor
+      const result = Object.create(Object.getPrototypeOf(obj));
+      Object.assign(result, cloned);
+      return result as T;
+    }
+
+    // For other object types, try to clone conservatively
+    try {
+      if (typeof (obj as any).constructor === 'function') {
+        const cloned = Object.create(Object.getPrototypeOf(obj));
+        for (const key in obj) {
+          if (this.isDangerousKey(key)) {
+            continue;
+          }
+          if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            cloned[key] = this.safeDeepClone((obj as any)[key]);
+          }
+        }
+        return cloned as T;
+      }
+    } catch (error) {
+      console.warn('Failed to clone object, returning original:', error);
+    }
+
+    // Last resort: return the original object (shallow)
+    return obj;
+  }
+
+  private static isPlainObject(obj: any): boolean {
+    if (typeof obj !== 'object' || obj === null) {
+      return false;
+    }
+
+    // Check if it's a plain object (created with {} or new Object())
+    const proto = Object.getPrototypeOf(obj);
+    return proto === Object.prototype || proto === null;
+  }
+
+  private static isDangerousKey(key: string): boolean {
+    // List of dangerous keys that could lead to prototype pollution
+    const dangerousKeys = [
+      '__proto__',
+      'constructor',
+      'prototype',
+      '__defineGetter__',
+      '__defineSetter__',
+      '__lookupGetter__',
+      '__lookupSetter__',
+      'hasOwnProperty',
+      'isPrototypeOf',
+      'propertyIsEnumerable',
+      'toLocaleString',
+      'toString',
+      'valueOf'
+    ];
+
+    return dangerousKeys.includes(key) || key.startsWith('__');
+  }
+
+  // Secure object merging with prototype pollution protection
+  static secureMerge<T extends Record<string, any>>(target: T, ...sources: Partial<T>[]): T {
+    const result = this.deepClone(target);
+
+    for (const source of sources) {
+      if (source && typeof source === 'object') {
+        for (const key in source) {
+          if (this.isDangerousKey(key)) {
+            console.warn(`Skipping dangerous key during merge: ${key}`);
+            continue;
+          }
+
+          if (Object.prototype.hasOwnProperty.call(source, key)) {
+            if (source[key] !== undefined) {
+              result[key] = this.deepClone(source[key]);
+            }
+          }
+        }
+      }
+    }
+
+    return result;
+  }
+
+  // Secure property setter with validation
+  static setProperty<T extends Record<string, any>>(obj: T, key: keyof T, value: T[keyof T]): boolean {
+    if (this.isDangerousKey(String(key))) {
+      console.warn(`Attempt to set dangerous property blocked: ${String(key)}`);
+      return false;
+    }
+
+    try {
+      obj[key] = value;
+      return true;
+    } catch (error) {
+      console.warn(`Failed to set property ${String(key)}:`, error);
+      return false;
+    }
+  }
 }
 
 // React hook for memory-safe event listeners
@@ -231,20 +410,27 @@ export function useObserver<T extends Element>(
 
         switch (observerType) {
           case 'intersection':
-            observer = new IntersectionObserver(observerCallback, options);
+            observer = new IntersectionObserver(
+              observerCallback as IntersectionObserverCallback,
+              options as IntersectionObserverInit
+            );
             observer.observe(target);
             cleanup = () => observer.disconnect();
             break;
 
           case 'resize':
-            observer = new ResizeObserver(observerCallback);
+            observer = new ResizeObserver(
+              observerCallback as ResizeObserverCallback
+            );
             observer.observe(target);
             cleanup = () => observer.disconnect();
             break;
 
           case 'mutation':
-            observer = new MutationObserver(observerCallback);
-            observer.observe(target, options);
+            observer = new MutationObserver(
+              observerCallback as MutationCallback
+            );
+            observer.observe(target, options as MutationObserverInit);
             cleanup = () => observer.disconnect();
             break;
 
@@ -348,7 +534,9 @@ export function useMemoryLeakDetection(
         console.group(`Memory Report: ${componentName}`);
         console.log(`Lifetime: ${lifetime.toFixed(2)}ms`);
         
-        if (initialMemory.current && finalMemory) {
+        if (initialMemory.current && finalMemory && 
+            typeof finalMemory.usedJSHeapSize === 'number' && 
+            typeof initialMemory.current.usedJSHeapSize === 'number') {
           const memoryDelta = finalMemory.usedJSHeapSize - initialMemory.current.usedJSHeapSize;
           console.log(`Memory Delta: ${(memoryDelta / 1024 / 1024).toFixed(2)}MB`);
           

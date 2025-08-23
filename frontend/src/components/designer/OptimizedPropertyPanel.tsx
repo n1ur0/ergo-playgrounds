@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, memo } from 'react';
 import type { ContractComponent } from '../../types/contractDesigner';
+import { getComponentProperty } from '../../types/contractDesigner';
 import { getComponentTemplate } from '../../data/componentTemplates';
 import { propertySystem, type PropertyDefinition } from '../../utils/propertySystem';
 import './PropertyPanel.css';
@@ -136,7 +137,7 @@ const NumberInput = memo<PropertyInputProps>(({ property, value, onChange }) => 
 
 NumberInput.displayName = 'NumberInput';
 
-const BooleanInput = memo<PropertyInputProps>(({ property, value, onChange }) => {
+const BooleanInput = memo<PropertyInputProps>(({ value, onChange }) => {
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.checked);
   }, [onChange]);
@@ -315,20 +316,23 @@ const OptimizedPropertyPanel = memo<PropertyPanelProps>(({
     return {
       onItemAdd: () => {
         if (!selectedComponent) return;
-        const currentValue = selectedComponent.properties[propertyKey] || [];
-        handlePropertyUpdate(propertyKey, [...currentValue, '']);
+        const currentValue = getComponentProperty(selectedComponent.properties, propertyKey);
+        const arrayValue = Array.isArray(currentValue) ? currentValue : [];
+        handlePropertyUpdate(propertyKey, [...arrayValue, '']);
       },
       onItemRemove: (index: number) => {
         if (!selectedComponent) return;
-        const currentValue = selectedComponent.properties[propertyKey] || [];
-        const newValue = currentValue.filter((_: any, i: number) => i !== index);
+        const currentValue = getComponentProperty(selectedComponent.properties, propertyKey);
+        const arrayValue = Array.isArray(currentValue) ? currentValue : [];
+        const newValue = arrayValue.filter((_: any, i: number) => i !== index);
         handlePropertyUpdate(propertyKey, newValue);
       },
       onItemUpdate: (index: number, itemValue: any) => {
         if (!selectedComponent) return;
-        const currentValue = [...(selectedComponent.properties[propertyKey] || [])];
-        currentValue[index] = itemValue;
-        handlePropertyUpdate(propertyKey, currentValue);
+        const currentValue = getComponentProperty(selectedComponent.properties, propertyKey);
+        const arrayValue = Array.isArray(currentValue) ? [...currentValue] : [];
+        arrayValue[index] = itemValue;
+        handlePropertyUpdate(propertyKey, arrayValue);
       }
     };
   }, [selectedComponent, handlePropertyUpdate]);
@@ -393,7 +397,7 @@ const OptimizedPropertyPanel = memo<PropertyPanelProps>(({
           error={propertyErrors.get(property.key)}
           warning={propertyWarnings.get(property.key)}
         >
-          {renderPropertyInput(property, selectedComponent.properties[property.key] ?? property.defaultValue)}
+          {renderPropertyInput(property, getComponentProperty(selectedComponent.properties, property.key) ?? property.defaultValue)}
         </PropertyField>
       ));
   }, [selectedComponent, propertySchema, propertyErrors, propertyWarnings, renderPropertyInput]);

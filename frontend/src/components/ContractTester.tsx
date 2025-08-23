@@ -2237,51 +2237,122 @@ const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample, layout
 
   if (!selectedExample) {
     return (
-      <WelcomePage 
-        onSelectExample={onSelectExample || (() => {})}
-        onToggleSidebar={layout?.toggleSidebar}
-        isMobile={layout?.isMobile}
-      />
+      <ErrorBoundary
+        level="section"
+        fallback={(error, retry) => (
+          <div className="welcome-error-fallback">
+            <div className="error-message">
+              <AlertTriangle size={24} color="#ffc107" />
+              <h3>Welcome Page Error</h3>
+              <p>The welcome page failed to load properly.</p>
+              <button onClick={retry} className="retry-button">
+                <RefreshCw size={16} />
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+        resetKeys={[selectedExample]}
+      >
+        <WelcomePage 
+          onSelectExample={onSelectExample || (() => {})}
+          onToggleSidebar={layout?.toggleSidebar}
+          isMobile={layout?.isMobile}
+        />
+      </ErrorBoundary>
     );
   }
 
-  // Handle contract designer mode
+  // Handle contract designer mode with error boundary
   if (selectedExample === 'contractDesigner') {
-    return <ContractDesigner className="contract-designer-full" />;
+    return (
+      <ErrorBoundary
+        level="page"
+        fallback={handleCriticalError}
+        resetKeys={[selectedExample]}
+      >
+        <ContractDesigner className="contract-designer-full" />
+      </ErrorBoundary>
+    );
   }
 
   return (
-    <div className="contract-tester">
-      <div className="contract-header">
-        <div className="header-info">
-          <h2>{selectedExample.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</h2>
-          <div className="header-actions">
-            <button
-              className="run-button primary"
-              onClick={handleRunContract}
-              disabled={isRunning}
-            >
-              {isRunning ? (
-                <>
-                  <RefreshCw size={16} className="spinning" />
-                  Running...
-                </>
-              ) : (
-                <>
-                  <Play size={16} />
-                  Run Contract
-                </>
-              )}
-            </button>
+    <ToastProvider position="top-right" maxToasts={3}>
+      <ErrorBoundary
+        level="page"
+        fallback={handleCriticalError}
+        resetKeys={[selectedExample, activeTab]}
+      >
+        <div className="contract-tester">
+          {/* Error recovery section */}
+          {lastError && (
+            <div className="error-recovery-section">
+              <ErrorRecovery
+                error={{
+                  message: lastError.message,
+                  severity: lastError.type === 'compilation' ? 'high' : 'medium',
+                  timestamp: new Date(),
+                  userAgent: navigator.userAgent,
+                  url: window.location.href
+                } as ErrorDetails}
+                context={{
+                  component: 'ContractTester',
+                  operation: lastError.type,
+                  attemptCount: retryCount
+                }}
+                customActions={recoveryActions}
+                onRecoverySuccess={() => {
+                  clearError();
+                  setRetryCount(0);
+                }}
+                autoRetry={lastError.type === 'network'}
+                maxAutoRetries={2}
+                className="contract-error-recovery"
+              />
+            </div>
+          )}
+          
+          <div className="contract-header">
+            <div className="header-info">
+              <h2>{selectedExample.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</h2>
+              <div className="header-actions">
+                <button
+                  className={`run-button primary ${isRunning || isRecovering ? 'loading' : ''}`}
+                  onClick={handleRunContract}
+                  disabled={isRunning || isRecovering}
+                >
+                  {isRunning ? (
+                    <>
+                      <RefreshCw size={16} className="spinning" />
+                      Running...
+                    </>
+                  ) : isRecovering ? (
+                    <>
+                      <RefreshCw size={16} className="spinning" />
+                      Retrying...
+                    </>
+                  ) : (
+                    <>
+                      <Play size={16} />
+                      Run Contract
+                    </>
+                  )}
+                </button>
+                
+                {retryCount > 0 && (
+                  <div className="retry-indicator">
+                    <span className="retry-count">Attempt {retryCount + 1}</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <div className="contract-tabs">
-        <button
-          className={`tab ${activeTab === 'learn' ? 'active' : ''}`}
-          onClick={() => setActiveTab('learn')}
-        >
+          <div className="contract-tabs">
+            <button
+              className={`tab ${activeTab === 'learn' ? 'active' : ''}`}
+              onClick={() => setActiveTab('learn')}
+            >
           <BookOpen size={16} />
           Learn
         </button>
@@ -2359,6 +2430,89 @@ const ContractTester: React.FC<ContractTesterProps> = ({ selectedExample, layout
         )}
       </div>
     </div>
+  );
+};
+
+          </div>
+          
+          {/* Main content area with individual error boundaries */}
+          <div className="contract-content">
+            {activeTab === 'learn' && (
+              <ErrorBoundary
+                level="section"
+                fallback={(error, retry) => (
+                  <div className="section-error">
+                    <AlertTriangle size={20} color="#ffc107" />
+                    <p>Education content failed to load</p>
+                    <button onClick={retry}>Retry</button>
+                  </div>
+                )}
+              >
+                <ContractEducation selectedExample={selectedExample} />
+              </ErrorBoundary>
+            )}
+            
+            {activeTab === 'code' && (
+              <ErrorBoundary
+                level="section"
+                fallback={(error, retry) => (
+                  <div className="section-error">
+                    <AlertTriangle size={20} color="#ffc107" />
+                    <p>Code editor failed to load</p>
+                    <button onClick={retry}>Retry</button>
+                  </div>
+                )}
+              >
+                <CodeEditor 
+                  value={code} 
+                  onChange={setCode}
+                  language="scala"
+                  readOnly={false}
+                />
+              </ErrorBoundary>
+            )}
+            
+            {activeTab === 'params' && (
+              <ErrorBoundary
+                level="section"
+                fallback={(error, retry) => (
+                  <div className="section-error">
+                    <AlertTriangle size={20} color="#ffc107" />
+                    <p>Parameters panel failed to load</p>
+                    <button onClick={retry}>Retry</button>
+                  </div>
+                )}
+              >
+                <ContractParameters 
+                  parameters={parameters}
+                  onParametersChange={setParameters}
+                  selectedExample={selectedExample}
+                />
+              </ErrorBoundary>
+            )}
+            
+            {activeTab === 'results' && (
+              <ErrorBoundary
+                level="section"
+                fallback={(error, retry) => (
+                  <div className="section-error">
+                    <AlertTriangle size={20} color="#ffc107" />
+                    <p>Results panel failed to load</p>
+                    <button onClick={retry}>Retry</button>
+                  </div>
+                )}
+              >
+                <SimulationResults 
+                  result={simulationResult}
+                  isLoading={isRunning}
+                  onClear={() => setSimulationResult(null)}
+                />
+              </ErrorBoundary>
+            )}
+          </div>
+        </div>
+      </ErrorBoundary>
+    </ToastProvider>
   );
 };
 

@@ -1,5 +1,6 @@
 import { useReducer, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useDebounce, useBatchUpdates, performanceUtils } from './usePerformanceOptimizations';
+import MemoryManager from '../utils/memoryManagement';
 
 // Optimized state management for high-performance components
 export interface OptimizedStateConfig<T> {
@@ -31,7 +32,7 @@ type OptimizedStateAction<T> =
   | { type: 'LOAD_STATE'; payload: T };
 
 // High-performance state reducer with history and batching
-function optimizedStateReducer<T extends Record<string, any>>(
+function optimizedStateReducer<T extends Record<string, unknown>>(
   state: OptimizedStateHistory<T>,
   action: OptimizedStateAction<T>,
   config: OptimizedStateConfig<T>
@@ -60,14 +61,14 @@ function optimizedStateReducer<T extends Record<string, any>>(
       return addToHistory(action.payload);
 
     case 'UPDATE_STATE': {
-      const newState = { ...state.present, ...action.payload };
+      const newState = MemoryManager.secureMerge(state.present, action.payload);
       return addToHistory(newState);
     }
 
     case 'BATCH_UPDATE': {
-      let newState = { ...state.present };
+      let newState = MemoryManager.deepClone(state.present);
       for (const update of action.payload) {
-        newState = { ...newState, ...update };
+        newState = MemoryManager.secureMerge(newState, update);
       }
       return addToHistory(newState);
     }
@@ -110,7 +111,7 @@ function optimizedStateReducer<T extends Record<string, any>>(
 }
 
 // Main optimized state hook
-export function useOptimizedState<T extends Record<string, any>>(
+export function useOptimizedState<T extends Record<string, unknown>>(
   config: OptimizedStateConfig<T>
 ) {
   const {
@@ -155,11 +156,13 @@ export function useOptimizedState<T extends Record<string, any>>(
       )(stateHistory.present),
     
     // Multi-property selector
-    selectMultiple: <K extends keyof T>(keys: K[]) =>
-      performanceUtils.createMemoizedSelector(
-        (state: T) => keys.reduce((acc, key) => ({ ...acc, [key]: state[key] }), {} as Pick<T, K>),
-        config.equalityFn
-      )(stateHistory.present)
+    selectMultiple: <K extends keyof T>(keys: K[]): Pick<T, K> => {
+      const result = {} as Pick<T, K>;
+      keys.forEach(key => {
+        result[key] = stateHistory.present[key];
+      });
+      return result;
+    }
   }), [stateHistory, config.equalityFn]);
 
   // Optimized state setters
@@ -283,8 +286,8 @@ export function useOptimizedState<T extends Record<string, any>>(
 
 // Specialized hook for canvas state management
 export function useCanvasState(initialCanvas: {
-  components: any[];
-  connections: any[];
+  components: unknown[];
+  connections: unknown[];
   selectedComponent: string | null;
   zoomLevel: number;
   offset: { x: number; y: number };
@@ -304,7 +307,7 @@ export function useCanvasState(initialCanvas: {
 }
 
 // Specialized hook for form state management
-export function useFormState<T extends Record<string, any>>(initialForm: T) {
+export function useFormState<T extends Record<string, unknown>>(initialForm: T) {
   const optimizedState = useOptimizedState({
     initialState: {
       values: initialForm,
@@ -320,16 +323,16 @@ export function useFormState<T extends Record<string, any>>(initialForm: T) {
 
   const setFieldValue = useCallback(<K extends keyof T>(field: K, value: T[K]) => {
     optimizedState.updateState({
-      values: { ...optimizedState.state.values, [field]: value },
+      values: MemoryManager.secureMerge(optimizedState.state.values, { [field]: value } as Record<string, unknown>),
       isDirty: true,
-      touched: { ...optimizedState.state.touched, [field]: true }
+      touched: MemoryManager.secureMerge(optimizedState.state.touched, { [field]: true } as Record<string, boolean>)
     });
   }, [optimizedState]);
 
   const setFieldError = useCallback(<K extends keyof T>(field: K, error: string) => {
     optimizedState.updateState({
-      errors: { ...optimizedState.state.errors, [field]: error },
-      isValid: Object.keys({ ...optimizedState.state.errors, [field]: error }).length === 0
+      errors: MemoryManager.secureMerge(optimizedState.state.errors, { [field]: error } as Record<string, string>),
+      isValid: Object.keys(MemoryManager.secureMerge(optimizedState.state.errors, { [field]: error } as Record<string, string>)).length === 0
     });
   }, [optimizedState]);
 

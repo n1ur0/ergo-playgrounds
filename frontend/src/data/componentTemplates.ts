@@ -10,6 +10,7 @@ export const componentTemplates: ComponentTemplate[] = [
     icon: '📥',
     complexity: 'beginner',
     defaultProperties: {
+      id: 'output-box',
       value: 1000000, // 0.001 ERG in nanoERG
       registers: {},
       tokens: []
@@ -48,8 +49,8 @@ val inputValue = inputBox.value
     icon: '📤',
     complexity: 'beginner',
     defaultProperties: {
+      id: 'output-box',
       value: 1000000,
-      script: 'sigmaProp(true)',
       registers: {},
       tokens: []
     },
@@ -89,9 +90,9 @@ outputBox.propositionBytes == {script}.bytes
     icon: '🛡️',
     complexity: 'beginner',
     defaultProperties: {
+      id: 'guard-condition',
       condition: 'true',
-      operator: '==',
-      value: '1'
+      operator: 'AND'
     },
     ports: {
       inputs: [
@@ -134,6 +135,7 @@ val guardCondition = ({left-operand} {operator} {right-operand})
     icon: '✍️',
     complexity: 'intermediate',
     defaultProperties: {
+      id: 'signature-check',
       publicKey: '',
       message: 'default'
     },
@@ -180,6 +182,7 @@ val isValidSignature = publicKey
     icon: '🪙',
     complexity: 'intermediate',
     defaultProperties: {
+      id: 'token-operation',
       tokenId: '',
       amount: 1,
       operation: 'transfer'
@@ -230,6 +233,7 @@ val tokenTransferValid = (inputTokens == outputTokens)
     icon: '📏',
     complexity: 'intermediate',
     defaultProperties: {
+      id: 'height-check',
       minHeight: 0,
       maxHeight: 1000000,
       operator: '>='
@@ -270,9 +274,10 @@ val heightValid = (currentHeight {operator} heightConstraint)
     icon: '🗂️',
     complexity: 'intermediate',
     defaultProperties: {
+      id: 'register-access',
       register: 'R4',
       dataType: 'Coll[Byte]',
-      defaultValue: null
+      defaultValue: ''
     },
     ports: {
       inputs: [
@@ -310,8 +315,10 @@ val hasValidRegister = registerData.isDefined
     icon: '✅',
     complexity: 'intermediate',
     defaultProperties: {
-      rules: [],
-      combineWith: 'AND'
+      id: 'validation-rule',
+      rule: '',
+      errorMessage: 'Validation failed',
+      severity: 'error'
     },
     ports: {
       inputs: [
@@ -356,8 +363,10 @@ val validationResult = condition1 {combineWith} condition2
     icon: '⚙️',
     complexity: 'advanced',
     defaultProperties: {
+      id: 'custom-logic',
       code: 'sigmaProp(true)',
-      description: 'Custom logic implementation'
+      language: 'ergoscript',
+      parameters: []
     },
     ports: {
       inputs: [

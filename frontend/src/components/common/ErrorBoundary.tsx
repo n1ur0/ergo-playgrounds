@@ -1,42 +1,6 @@
-import React, { Component, type ErrorInfo, type ReactNode } from 'react';
-
-// Error severity levels
-export type ErrorSeverity = 'low' | 'medium' | 'high' | 'critical';
-
-// Error details interface
-export interface ErrorDetails {
-  message: string;
-  stack?: string;
-  componentStack?: string;
-  severity: ErrorSeverity;
-  timestamp: Date;
-  userAgent: string;
-  url: string;
-  userId?: string;
-  sessionId?: string;
-  additionalInfo?: Record<string, any>;
-}
-
-// Error boundary state interface
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error: Error | null;
-  errorInfo: ErrorInfo | null;
-  errorId: string | null;
-  retryCount: number;
-}
-
-// Error boundary props interface
-interface ErrorBoundaryProps {
-  children: ReactNode;
-  fallback?: (error: ErrorDetails, retry: () => void) => ReactNode;
-  onError?: (error: ErrorDetails, errorId: string) => void;
-  maxRetries?: number;
-  resetOnPropsChange?: boolean;
-  resetKeys?: Array<string | number>;
-  isolate?: boolean;
-  level?: 'page' | 'section' | 'component';
-}
+import React, { Component, type ReactNode } from 'react';
+import type { ErrorBoundaryProps, ErrorBoundaryState, ErrorDetails, FallbackProps } from './errorBoundaryTypes';
+import { generateErrorId, createErrorDetails } from './errorBoundaryUtils';
 
 // Error logging service
 class ErrorLogger {
@@ -58,7 +22,9 @@ class ErrorLogger {
     // Keep only the most recent errors
     if (this.errors.size > this.maxErrors) {
       const oldestKey = this.errors.keys().next().value;
-      this.errors.delete(oldestKey);
+      if (oldestKey !== undefined) {
+        this.errors.delete(oldestKey);
+      }
     }
 
     // Log to console in development
@@ -116,90 +82,61 @@ class ErrorLogger {
   }
 }
 
-// Utility functions
-function generateErrorId(): string {
-  return `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
-
-function determineErrorSeverity(error: Error): ErrorSeverity {
-  const message = error.message.toLowerCase();
-  
-  if (message.includes('chunkloaderror') || message.includes('loading chunk')) {
-    return 'low'; // Network/loading issues
-  }
-  
-  if (message.includes('permission') || message.includes('unauthorized')) {
-    return 'medium'; // Permission issues
-  }
-  
-  if (message.includes('typeerror') || message.includes('referenceerror')) {
-    return 'high'; // Code errors
-  }
-  
-  if (message.includes('out of memory') || message.includes('quota exceeded')) {
-    return 'critical'; // System issues
-  }
-  
-  return 'medium'; // Default severity
-}
-
-function createErrorDetails(
-  error: Error, 
-  errorInfo: ErrorInfo, 
-  additionalInfo?: Record<string, any>
-): ErrorDetails {
-  return {
-    message: error.message,
-    stack: error.stack,
-    componentStack: errorInfo.componentStack,
-    severity: determineErrorSeverity(error),
-    timestamp: new Date(),
-    userAgent: navigator.userAgent,
-    url: window.location.href,
-    additionalInfo
-  };
-}
-
 // Default fallback components
-interface FallbackProps {
-  error: ErrorDetails;
-  retry: () => void;
-}
-
-const DefaultErrorFallback: React.FC<FallbackProps> = ({ error, retry }) => (
-  <div className="error-boundary-fallback">
-    <div className="error-boundary-content">
-      <div className="error-icon">⚠️</div>
-      <h2>Something went wrong</h2>
-      <p>We encountered an unexpected error. This has been logged and we're working to fix it.</p>
-      
-      <div className="error-details">
-        <details>
-          <summary>Error Details</summary>
-          <div className="error-info">
-            <p><strong>Message:</strong> {error.message}</p>
-            <p><strong>Severity:</strong> {error.severity}</p>
+const DefaultErrorFallback: React.FC<FallbackProps> = ({ error, retry }) => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  return (
+    <div className="error-boundary-fallback">
+      <div className="error-boundary-content">
+        <div className="error-icon">⚠️</div>
+        <h2>Something went wrong</h2>
+        <p>We encountered an unexpected error. This has been logged and we're working to fix it.</p>
+        
+        {/* Only show error details in development */}
+        {!isProduction && (
+          <div className="error-details">
+            <details>
+              <summary>Error Details (Development Only)</summary>
+              <div className="error-info">
+                <p><strong>Message:</strong> {error.message}</p>
+                <p><strong>Severity:</strong> {error.severity}</p>
+                <p><strong>Time:</strong> {error.timestamp.toLocaleString()}</p>
+                {error.stack && (
+                  <pre style={{ fontSize: '0.75rem', overflow: 'auto', maxHeight: '200px' }}>
+                    <strong>Stack:</strong> {error.stack}
+                  </pre>
+                )}
+              </div>
+            </details>
+          </div>
+        )}
+        
+        {/* In production, only show generic error message */}
+        {isProduction && (
+          <div className="error-message-production">
+            <p><strong>Error:</strong> {error.message}</p>
             <p><strong>Time:</strong> {error.timestamp.toLocaleString()}</p>
           </div>
-        </details>
-      </div>
-      
-      <div className="error-actions">
-        <button onClick={retry} className="retry-button">
-          Try Again
-        </button>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="reload-button"
-        >
-          Reload Page
-        </button>
+        )}
+        
+        <div className="error-actions">
+          <button onClick={retry} className="retry-button">
+            Try Again
+          </button>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="reload-button"
+          >
+            Reload Page
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
-const ComponentErrorFallback: React.FC<FallbackProps> = ({ error, retry }) => (
+const ComponentErrorFallback: React.FC<FallbackProps> = ({ retry }) => (
   <div className="component-error-fallback">
     <div className="error-message">
       <span className="error-icon">⚠️</span>
@@ -211,7 +148,7 @@ const ComponentErrorFallback: React.FC<FallbackProps> = ({ error, retry }) => (
   </div>
 );
 
-const SectionErrorFallback: React.FC<FallbackProps> = ({ error, retry }) => (
+const SectionErrorFallback: React.FC<FallbackProps> = ({ retry }) => (
   <div className="section-error-fallback">
     <div className="error-content">
       <div className="error-header">
@@ -257,7 +194,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     const errorId = generateErrorId();
     const errorDetails = createErrorDetails(error, errorInfo, {
       retryCount: this.state.retryCount,
@@ -350,7 +287,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   render(): ReactNode {
-    const { hasError, error, errorInfo, errorId } = this.state;
+    const { hasError, error, errorInfo } = this.state;
     const { children, fallback } = this.props;
 
     if (hasError && error && errorInfo) {
@@ -405,171 +342,5 @@ export function useErrorHandler() {
 
   return { reportError, errorLogger };
 }
-
-// Context for error boundary configuration
-export const ErrorBoundaryContext = React.createContext<{
-  onError?: (error: ErrorDetails, errorId: string) => void;
-  maxRetries?: number;
-}>({});
-
-// Provider component for error boundary configuration
-export const ErrorBoundaryProvider: React.FC<{
-  children: ReactNode;
-  onError?: (error: ErrorDetails, errorId: string) => void;
-  maxRetries?: number;
-}> = ({ children, onError, maxRetries }) => (
-  <ErrorBoundaryContext.Provider value={{ onError, maxRetries }}>
-    {children}
-  </ErrorBoundaryContext.Provider>
-);
-
-// CSS styles (to be imported)
-export const errorBoundaryStyles = `
-.error-boundary-fallback {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-  padding: 2rem;
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-}
-
-.error-boundary-content {
-  max-width: 500px;
-  text-align: center;
-}
-
-.error-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-}
-
-.error-boundary-content h2 {
-  color: #dc3545;
-  margin-bottom: 1rem;
-}
-
-.error-boundary-content p {
-  color: #6c757d;
-  margin-bottom: 1.5rem;
-  line-height: 1.5;
-}
-
-.error-details {
-  margin: 1.5rem 0;
-  text-align: left;
-}
-
-.error-details details {
-  background: #fff;
-  border: 1px solid #e9ecef;
-  border-radius: 4px;
-  padding: 1rem;
-}
-
-.error-details summary {
-  cursor: pointer;
-  font-weight: 500;
-  color: #495057;
-}
-
-.error-info {
-  margin-top: 1rem;
-  font-family: monospace;
-  font-size: 0.875rem;
-  color: #6c757d;
-}
-
-.error-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-}
-
-.retry-button,
-.reload-button {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 4px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.retry-button {
-  background: #007bff;
-  color: white;
-}
-
-.retry-button:hover {
-  background: #0056b3;
-}
-
-.reload-button {
-  background: #6c757d;
-  color: white;
-}
-
-.reload-button:hover {
-  background: #545b62;
-}
-
-.component-error-fallback {
-  padding: 1rem;
-  background: #fff3cd;
-  border: 1px solid #ffeaa7;
-  border-radius: 4px;
-  margin: 0.5rem 0;
-}
-
-.error-message {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: #856404;
-}
-
-.retry-button-small {
-  padding: 0.25rem 0.5rem;
-  background: #ffc107;
-  border: none;
-  border-radius: 3px;
-  font-size: 0.75rem;
-  cursor: pointer;
-  color: #212529;
-}
-
-.retry-button-small:hover {
-  background: #e0a800;
-}
-
-.section-error-fallback {
-  padding: 2rem;
-  background: #f8d7da;
-  border: 1px solid #f5c6cb;
-  border-radius: 6px;
-  margin: 1rem 0;
-}
-
-.error-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.error-header h3 {
-  margin: 0;
-  color: #721c24;
-}
-
-.section-error-fallback p {
-  color: #721c24;
-  margin-bottom: 1.5rem;
-}
-`;
 
 export default ErrorBoundary;
